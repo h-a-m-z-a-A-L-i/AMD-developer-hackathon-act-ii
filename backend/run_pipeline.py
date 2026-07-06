@@ -1,21 +1,27 @@
 """
 run_pipeline.py
 ------------------
-The full end-to-end demo pipeline:
-  1. Load patients.csv
+The full end-to-end demo pipeline, running on REAL NHANES 2017-2018 patient data:
+  1. Load real_patients.csv (built by build_real_dataset.py from real NHANES XPT files)
   2. For each patient, run all 4 specialist agents
   3. Run the synthesis agent to get a referral recommendation
-  4. Compare against answer_key.csv to report accuracy (for YOUR eyes only)
 
 Usage:
-    python3 run_pipeline.py                 # runs on all patients, full report
-    python3 run_pipeline.py --patient P009  # runs on just one patient (good for live demo)
+    python3 run_pipeline.py                  # runs on all patients, full report
+    python3 run_pipeline.py --patient P93758  # runs on just one patient (good for live demo)
 
 To use REAL Fireworks LLM agents instead of the rule-based fallback:
     export FIREWORKS_API_KEY="your-key-here"
     python3 run_pipeline.py
-(Without the key set, this runs the deterministic fallback logic - fully functional
-for testing/rehearsing the demo before your API key is ready.)
+(Without the key set, this runs the deterministic fallback logic, using real published
+clinical cutoffs (CKD-EPI eGFR, UACR, lipid thresholds) - fully functional for
+testing/rehearsing the demo before your API key is ready.)
+
+NOTE: since this is real de-identified survey data, there's no "answer key" telling you
+which patient truly has which complication (unlike an earlier synthetic-data version
+would have) - that's expected. Your pitch is about the reasoning/architecture using
+real validated clinical formulas, not about proving accuracy against ground truth
+you don't have access to for real people.
 """
 
 import argparse
@@ -32,7 +38,7 @@ def run_patient(patient_row: dict, verbose=True):
         print(f"\n{'='*70}")
         print(f"Patient {patient_row['patient_id']}  |  Mode: {mode}")
         print(f"A1c: {patient_row['a1c_percent']}%  |  Age: {patient_row['age']}  |  "
-              f"Years with diabetes: {patient_row['years_with_diabetes']}")
+              f"Sex: {patient_row['sex']}")
         print(f"{'='*70}")
 
     specialist_results = []
@@ -57,7 +63,7 @@ def main():
     parser.add_argument("--check-accuracy", action="store_true", help="Compare results against answer_key.csv")
     args = parser.parse_args()
 
-    df = pd.read_csv("patients.csv")
+    df = pd.read_csv("real_patients.csv")
 
     if args.patient:
         df = df[df["patient_id"] == args.patient]
@@ -71,21 +77,11 @@ def main():
         _, synthesis = run_patient(patient_row)
         all_synthesis.append({"patient_id": patient_row["patient_id"], "top_concern": synthesis["top_concern"]})
 
-    # Accuracy check against answer key (only meaningful if you ran the full set)
-    try:
-        answer_df = pd.read_csv("answer_key.csv")
-        results_df = pd.DataFrame(all_synthesis)
-        merged = results_df.merge(answer_df, on="patient_id")
-        merged["correct"] = merged["top_concern"] == merged["true_hidden_complication"]
-        accuracy = merged["correct"].mean()
-
-        print(f"\n{'#'*70}")
-        print(f"ACCURACY CHECK (dev-only, don't show this comparison logic to judges as 'cheating'!)")
-        print(f"{'#'*70}")
-        print(merged.to_string(index=False))
-        print(f"\nOverall accuracy: {accuracy:.0%}  ({merged['correct'].sum()}/{len(merged)} correct)")
-    except FileNotFoundError:
-        pass
+    results_df = pd.DataFrame(all_synthesis)
+    print(f"\n{'#'*70}")
+    print("SUMMARY - top concern flagged per patient")
+    print(f"{'#'*70}")
+    print(results_df["top_concern"].value_counts().to_string())
 
 
 if __name__ == "__main__":

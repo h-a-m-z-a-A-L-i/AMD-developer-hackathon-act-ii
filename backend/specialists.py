@@ -13,7 +13,7 @@ When FIREWORKS_API_KEY is set, the real LLM writes its own analysis code,
 which then gets executed the same way the fallback code would be.
 """
 
-from agent_core import has_llm, call_fireworks, extract_code_block, run_agent_code
+from agent_core import has_llm, call_llm, extract_code_block, run_agent_code
 
 
 # ---------------------------------------------------------------------------
@@ -57,28 +57,27 @@ result = {{
 # NEUROPATHY SPECIALIST
 # ---------------------------------------------------------------------------
 NEUROPATHY_SYSTEM_PROMPT = """You are a diabetic neuropathy risk specialist agent. You know that
-high glucose VARIABILITY (not just average A1c) and long diabetes duration are the strongest
-early predictors of nerve damage risk - a patient can have a 'good' A1c average while still
-swinging wildly day to day, which is what actually damages nerves. Write Python code that reads
-the `patient` dict and sets a `result` dict: {"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
+longer diabetes duration and higher A1c are the strongest available predictors of nerve damage
+risk in single-visit survey data (true day-to-day glucose variability isn't available here).
+Write Python code that reads the `patient` dict and sets a `result` dict:
+{"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
 
 def neuropathy_fallback_code(patient):
     return f"""
-glucose_cv = {patient['glucose_variability_cv_percent']}
 years = {patient['years_with_diabetes']}
 a1c = {patient['a1c_percent']}
 
 risk_score = 0.0
 reasons = []
-if glucose_cv > 30:
-    risk_score += 0.5
-    reasons.append(f"Glucose variability (CV) of {{glucose_cv}}% is high despite A1c of {{a1c}}% looking fine")
 if years > 10:
+    risk_score += 0.5
+    reasons.append(f"{{years:.0f}} years with diabetes increases cumulative nerve damage risk")
+if a1c > 6.8:
     risk_score += 0.3
-    reasons.append(f"{{years}} years with diabetes increases cumulative nerve damage risk")
-if glucose_cv > 30 and years > 10:
-    risk_score += 0.1
-    reasons.append("Combination of long duration and high variability is a compounding risk factor")
+    reasons.append(f"A1c {{a1c}}% is at the higher end of the 'controlled' range")
+if years > 15 and a1c > 6.8:
+    risk_score += 0.2
+    reasons.append("Long duration combined with A1c elevation is a compounding risk factor")
 
 risk_score = min(risk_score, 1.0)
 result = {{
@@ -93,7 +92,7 @@ result = {{
 # RETINAL SPECIALIST
 # ---------------------------------------------------------------------------
 RETINAL_SYSTEM_PROMPT = """You are a diabetic retinopathy risk specialist agent. You know that
-elevated blood pressure combined with long diabetes duration is a strong predictor of retinal
+elevated blood pressure combined with longer diabetes duration is a strong predictor of retinal
 damage risk, independent of glucose control. Write Python code that reads the `patient` dict
 and sets a `result` dict: {"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
 
@@ -106,10 +105,10 @@ risk_score = 0.0
 reasons = []
 if bp > 130:
     risk_score += 0.5
-    reasons.append(f"Systolic BP of {{bp}} is elevated, a known retinopathy risk factor")
+    reasons.append(f"Systolic BP of {{bp:.0f}} is elevated, a known retinopathy risk factor")
 if years > 10:
     risk_score += 0.3
-    reasons.append(f"{{years}} years with diabetes increases retinal risk independent of glucose control")
+    reasons.append(f"{{years:.0f}} years with diabetes increases retinal risk independent of glucose control")
 if bp > 135 and years > 12:
     risk_score += 0.1
     reasons.append("High BP plus long duration is a compounding risk pattern")
@@ -176,7 +175,7 @@ def run_specialist(name: str, patient: dict) -> dict:
             f"Respond ONLY with a python code block that sets a `result` dict as instructed."
         )
         try:
-            raw = call_fireworks(system_prompt, user_prompt)
+            raw = call_llm(system_prompt, user_prompt)
             code = extract_code_block(raw)
         except Exception as e:
             # LLM call failed at runtime (bad key, network, etc) -> fall back gracefully

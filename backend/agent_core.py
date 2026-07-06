@@ -1,11 +1,12 @@
 """
 agent_core.py
 --------------
-Handles calling the Fireworks AI API (real LLM agent mode) and executing
-whatever Python analysis code the agent writes, in a controlled namespace.
+Handles calling an LLM agent (Fireworks AI, or a local Ollama instance shared via ngrok)
+and executing whatever Python analysis code the agent writes, in a controlled namespace.
 
-If no FIREWORKS_API_KEY is set, specialists.py falls back to template code
-so the whole pipeline still runs end-to-end for testing/demo rehearsal.
+Priority order: FIREWORKS_API_KEY (if set) -> OLLAMA_BASE_URL (if set) -> rule-based fallback.
+This means teammates can each set whichever env var applies to them and it just works,
+without touching any code.
 """
 
 import os
@@ -16,17 +17,22 @@ FIREWORKS_API_KEY = os.environ.get("FIREWORKS_API_KEY", "")
 FIREWORKS_MODEL = os.environ.get("FIREWORKS_MODEL", "accounts/fireworks/models/llama-v3p1-70b-instruct")
 FIREWORKS_URL = "https://api.fireworks.ai/inference/v1/chat/completions"
 
+# Local Ollama, shared via ngrok tunnel (or localhost if running your own).
+# Default here is the team's shared ngrok URL - override with OLLAMA_BASE_URL env var if needed.
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "https://backshift-luckily-unsaddle.ngrok-free.dev")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
+
 
 def has_llm():
-    return bool(FIREWORKS_API_KEY)
+    return bool(FIREWORKS_API_KEY) or bool(OLLAMA_BASE_URL)
 
 
 def call_fireworks(system_prompt: str, user_prompt: str) -> str:
     """Calls Fireworks AI chat completions endpoint. Returns raw text response."""
-    import requests  # local import so script still runs without `requests` if unused
+    import requests
 
     if not FIREWORKS_API_KEY:
-        raise RuntimeError("FIREWORKS_API_KEY not set - cannot call real LLM agent.")
+        raise RuntimeError("FIREWORKS_API_KEY not set - cannot call Fireworks.")
 
     resp = requests.post(
         FIREWORKS_URL,
@@ -47,6 +53,45 @@ def call_fireworks(system_prompt: str, user_prompt: str) -> str:
     resp.raise_for_status()
     data = resp.json()
     return data["choices"][0]["message"]["content"]
+
+
+def call_ollama(system_prompt: str, user_prompt: str) -> str:
+    """Calls a local (or ngrok-tunneled) Ollama instance using its OpenAI-compatible endpoint."""
+    import requests
+
+    if not OLLAMA_BASE_URL:
+        raise RuntimeError("OLLAMA_BASE_URL not set - cannot call Ollama.")
+
+    resp = requests.post(
+        f"{OLLAMA_BASE_URL.rstrip('/')}/v1/chat/completions",
+        headers={
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true",  # bypasses ngrok's free-tier warning interstitial
+        },
+        json={
+            "model": OLLAMA_MODEL,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        },
+        timeout=120,  # local models can be slower than a hosted API
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return data["choices"][0]["message"]["content"]
+
+
+def call_llm(system_prompt: str, user_prompt: str) -> str:
+    """Tries Fireworks first (if key set), then falls back to Ollama."""
+    if FIREWORKS_API_KEY:
+        try:
+            return call_fireworks(system_prompt, user_prompt)
+        except Exception:
+            pass  # fall through to Ollama
+    if OLLAMA_BASE_URL:
+        return call_ollama(system_prompt, user_prompt)
+    raise RuntimeError("No LLM backend available (neither FIREWORKS_API_KEY nor OLLAMA_BASE_URL usable).")
 
 
 def extract_code_block(text: str) -> str:
