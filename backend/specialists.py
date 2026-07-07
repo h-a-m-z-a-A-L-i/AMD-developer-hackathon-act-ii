@@ -16,6 +16,35 @@ which then gets executed the same way the fallback code would be.
 from agent_core import has_llm, call_llm, extract_code_block, run_agent_code
 
 
+# Appended to every specialist's system prompt. Small/fast models (like 7B-class
+# ones used for cheap testing) are prone to mixing plain English into code blocks,
+# which causes SyntaxErrors when executed. This block exists specifically to stop
+# that failure mode with blunt, repeated, unambiguous formatting instructions.
+STRICT_CODE_FORMAT_INSTRUCTIONS = """
+
+CRITICAL OUTPUT FORMAT RULES - follow these exactly:
+1. Respond with ONE python code block, wrapped in ```python and ```, and NOTHING else.
+2. Do NOT include any explanation, commentary, or natural-language sentences before,
+   after, or INSIDE the code block. Every line inside the code block must be valid,
+   executable Python - no exceptions, no "notes to self", no half-written sentences.
+3. Do NOT point out typos or issues in the prompt. Do NOT comment on the patient data.
+   Just write the analysis code.
+4. Every line must be syntactically valid Python. If you are not fully sure a line is
+   valid Python, do not include it - write simpler code instead.
+5. The code MUST end by assigning a dict to a variable named exactly `result` with
+   these exact keys: "risk_score" (float 0-1), "flag" (bool), "reasoning" (str).
+6. Do not import any modules. Do not read files or access the network. Only use the
+   `patient` dict that is already available to you.
+
+Example of the ONLY acceptable response format:
+```python
+egfr = patient["egfr"]
+risk_score = 0.8 if egfr < 84.8 else 0.1
+result = {"risk_score": risk_score, "flag": risk_score >= 0.4, "reasoning": "eGFR is low"}
+```
+"""
+
+
 # ---------------------------------------------------------------------------
 # RENAL SPECIALIST
 # ---------------------------------------------------------------------------
@@ -24,7 +53,7 @@ lab data to catch early kidney stress BEFORE standard diagnostic thresholds are 
 Key early-warning cutoffs you know: eGFR below ~84.8 mL/min/1.73m^2 (well above the
 standard 60 'disease' cutoff) and UACR above ~15.5 mg/g (below the classic 30 'abnormal'
 threshold) both indicate early risk. Write Python code that reads the `patient` dict and
-sets a `result` dict: {"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
+sets a `result` dict: {"risk_score": float 0-1, "flag": bool, "reasoning": str}.""" + STRICT_CODE_FORMAT_INSTRUCTIONS
 
 def renal_fallback_code(patient):
     return f"""
@@ -60,7 +89,7 @@ NEUROPATHY_SYSTEM_PROMPT = """You are a diabetic neuropathy risk specialist agen
 longer diabetes duration and higher A1c are the strongest available predictors of nerve damage
 risk in single-visit survey data (true day-to-day glucose variability isn't available here).
 Write Python code that reads the `patient` dict and sets a `result` dict:
-{"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
+{"risk_score": float 0-1, "flag": bool, "reasoning": str}.""" + STRICT_CODE_FORMAT_INSTRUCTIONS
 
 def neuropathy_fallback_code(patient):
     return f"""
@@ -94,7 +123,7 @@ result = {{
 RETINAL_SYSTEM_PROMPT = """You are a diabetic retinopathy risk specialist agent. You know that
 elevated blood pressure combined with longer diabetes duration is a strong predictor of retinal
 damage risk, independent of glucose control. Write Python code that reads the `patient` dict
-and sets a `result` dict: {"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
+and sets a `result` dict: {"risk_score": float 0-1, "flag": bool, "reasoning": str}.""" + STRICT_CODE_FORMAT_INSTRUCTIONS
 
 def retinal_fallback_code(patient):
     return f"""
@@ -128,7 +157,7 @@ result = {{
 CARDIO_SYSTEM_PROMPT = """You are a cardiovascular risk specialist agent analyzing a diabetic
 patient's lipid panel. Diabetics face elevated cardiovascular risk that a normal A1c does not
 capture. Write Python code that reads the `patient` dict and sets a `result` dict:
-{"risk_score": float 0-1, "flag": bool, "reasoning": str}."""
+{"risk_score": float 0-1, "flag": bool, "reasoning": str}.""" + STRICT_CODE_FORMAT_INSTRUCTIONS
 
 def cardio_fallback_code(patient):
     return f"""
@@ -166,7 +195,10 @@ SPECIALISTS = {
 
 
 def run_specialist(name: str, patient: dict) -> dict:
-    """Runs one specialist agent on one patient. Uses real LLM if available, else fallback."""
+    """Runs one specialist agent on one patient. Uses real LLM if reachable, else fallback -
+    and HONESTLY labels which one actually happened, instead of silently mislabeling.
+    Retries once with error feedback if the LLM's code fails to execute, before
+    giving up and using the rule-based fallback."""
     system_prompt, fallback_fn = SPECIALISTS[name]
 
     if has_llm():
@@ -177,12 +209,38 @@ def run_specialist(name: str, patient: dict) -> dict:
         try:
             raw = call_llm(system_prompt, user_prompt)
             code = extract_code_block(raw)
-        except Exception as e:
-            # LLM call failed at runtime (bad key, network, etc) -> fall back gracefully
+            output = run_agent_code(code, patient)
+
+            # If the generated code failed to execute, give the model ONE more
+            # chance with the actual error shown to it, before falling back.
+            if output["reasoning"].startswith("[EXECUTION ERROR]") or output["reasoning"].startswith("[ERROR]"):
+                retry_prompt = (
+                    f"{user_prompt}\n\nYour previous attempt failed with this error:\n"
+                    f"{output['reasoning']}\n"
+                    f"Fix it. Remember: output ONLY a valid python code block, no other text."
+                )
+                raw_retry = call_llm(system_prompt, retry_prompt)
+                code_retry = extract_code_block(raw_retry)
+                output_retry = run_agent_code(code_retry, patient)
+                if not (output_retry["reasoning"].startswith("[EXECUTION ERROR]") or output_retry["reasoning"].startswith("[ERROR]")):
+                    output = output_retry  # retry succeeded, use it
+                else:
+                    raise RuntimeError("LLM code failed twice, falling back")
+
+            used_llm = True
+        except Exception:
+            # LLM was reachable but its code didn't work even after a retry -
+            # fall back, and say so honestly rather than pretending it was live.
             code = fallback_fn(patient)
+            output = run_agent_code(code, patient)
+            used_llm = False
     else:
         code = fallback_fn(patient)
+        output = run_agent_code(code, patient)
+        used_llm = False
 
-    output = run_agent_code(code, patient)
     output["specialist"] = name
+    output["used_llm"] = used_llm
+    if not used_llm:
+        output["reasoning"] = f"[LLM OFFLINE - rule-based fallback used] {output['reasoning']}"
     return output
