@@ -42,10 +42,9 @@ export function LiveAgentTerminal({ specialists = [], synthesis, isLoading = fal
       const logs = [
         "&gt; [SYSTEM] Initializing Diabetic Complication Swarm Engine...",
         "&gt; [SYSTEM] Loading NHANES 2017-2018 patient records structured matrix...",
-        "&gt; [SYSTEM] Spawning Multidisciplinary Board of Medical Specialist Agents...",
-        "&gt; [SYSTEM] Preparing local analysis runtime for specialist evaluation...",
-        "&gt; [SWARM] Broadcasting patient demographics parallel inference...",
-        "&gt; [SWARM] Running local Python analysis loop...",
+        "&gt; [SYSTEM] Dispatching specialist analysis agents...",
+        "&gt; [SYSTEM] Running live backend pipeline workflow...",
+        "&gt; [SWARM] Broadcasting patient demographics through backend services...",
       ];
 
       let delay = 100;
@@ -70,9 +69,11 @@ export function LiveAgentTerminal({ specialists = [], synthesis, isLoading = fal
     if (activeSpecialistIdx >= 0 && activeSpecialistIdx < specialists.length) {
       const spec = specialists[activeSpecialistIdx];
       const name = specialistLabels[spec.specialist] || spec.specialist.toUpperCase();
-      const statusLog = `&gt; [SWARM] Specialist agent [${name}] completed code execution.`;
+      const flagMarker = spec.flag ? "⚠️  FLAGGED" : "   clear";
+      const statusLog = `&gt; [${name}] risk=${spec.risk_score.toFixed(2)}  ${flagMarker}`;
+      const reasoningLog = `&gt; [${name}] -> ${spec.reasoning}`;
 
-      setTerminalLogs((prev) => [...prev, statusLog]);
+      setTerminalLogs((prev) => [...prev, statusLog, reasoningLog]);
 
       const timer = setTimeout(() => {
         setActiveSpecialistIdx((prev) => prev + 1);
@@ -83,9 +84,7 @@ export function LiveAgentTerminal({ specialists = [], synthesis, isLoading = fal
       const timer = setTimeout(() => {
         setTerminalLogs((prev) => [
           ...prev,
-          "&gt; [SWARM] Synthesis Orchestrator compiling clinical decisions...",
-          `&gt; [SYNTHESIS] Primary Concern Flagged: ${synthesis.top_concern}`,
-          `&gt; [SYNTHESIS] Referral Recommendation Issued.`,
+          `&gt; >>> SYNTHESIS: ${synthesis.recommendation}`,
         ]);
         setActiveSpecialistIdx(-1);
       }, 500);
@@ -102,7 +101,7 @@ export function LiveAgentTerminal({ specialists = [], synthesis, isLoading = fal
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
           <span className="text-xs uppercase tracking-wide text-emerald-600 font-medium">
-            Connected to Local Runtime
+            Connected to Live Backend Pipeline
           </span>
         </div>
       </div>
@@ -114,7 +113,7 @@ export function LiveAgentTerminal({ specialists = [], synthesis, isLoading = fal
             <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
           </div>
-          <span className="select-none font-sans text-xs text-white/40">bash - local-analysis</span>
+          <span className="select-none font-sans text-xs text-white/40">bash - live-backend</span>
           <span className="w-10" />
         </div>
 
@@ -137,39 +136,6 @@ export function LiveAgentTerminal({ specialists = [], synthesis, isLoading = fal
               <span className="ml-1 inline-block h-4 w-2 animate-ping bg-emerald-400" />
             )}
           </div>
-
-          {!isLoading && specialists.slice(0, activeSpecialistIdx >= 0 ? activeSpecialistIdx : specialists.length).map((agent) => {
-            const name = specialistLabels[agent.specialist] || agent.specialist.toUpperCase();
-            return (
-              <div key={agent.specialist} className="space-y-2 rounded-lg border border-white/5 bg-zinc-950/40 p-3">
-                <div className="flex items-center justify-between border-b border-white/5 pb-1 text-xs">
-                  <span className="font-bold text-amber-400">{name}</span>
-                  <span className={agent.flag ? "text-red-400" : "text-emerald-400"}>
-                    SCORE: {(agent.risk_score * 100).toFixed(0)}% | FLAGGED: {agent.flag ? "TRUE" : "FALSE"}
-                  </span>
-                </div>
-
-                <div className="scrollbar-none max-h-[150px] space-y-1.5 overflow-y-auto font-mono leading-relaxed text-white/80">
-                  <p className="text-xs uppercase tracking-wider text-white/40">// Execution Output &amp; Logic</p>
-                  <pre className="whitespace-pre-wrap rounded border border-white/5 bg-black/40 p-2 text-xs leading-tight text-white/90">
-                    {agent.reasoning}
-                  </pre>
-                </div>
-              </div>
-            );
-          })}
-
-          {!isLoading && synthesis && activeSpecialistIdx === -1 && terminalLogs.some(log => log.includes("SYNTHESIS")) && (
-            <div className="animate-fadeIn space-y-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
-              <div className="flex items-center justify-between border-b border-emerald-500/10 pb-1 text-xs">
-                <span className="font-bold text-emerald-300">SYNTHESIS_ORCHESTRATOR</span>
-                <span className="font-bold text-amber-400">TOP CONCERN: {synthesis.top_concern}</span>
-              </div>
-              <p className="text-sm italic leading-relaxed text-white">
-                &quot;{synthesis.recommendation}&quot;
-              </p>
-            </div>
-          )}
 
           <div ref={terminalEndRef} />
         </div>

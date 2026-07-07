@@ -54,12 +54,17 @@ From the repository root:
 
 ```bash
 cd backend
-python -m venv .venv
 
-# macOS / Linux
+# Create virtual environment with Python 3.12
+# On macOS / Linux:
+python3.12 -m venv .venv
+# On Windows (using the Python Launcher):
+py -3.12 -m venv .venv
+
+# Activate virtual environment
+# On macOS / Linux:
 source .venv/bin/activate
-
-# Windows PowerShell
+# On Windows PowerShell:
 .venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt

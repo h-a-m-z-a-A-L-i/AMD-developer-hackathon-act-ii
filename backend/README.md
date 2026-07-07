@@ -41,10 +41,22 @@ That said, this is still a prototype and not a clinical-grade decision support p
 
 ### 1. Create and activate a Python environment
 
+This project is currently expected to run with Python 3.12. If your machine defaults to Python 3.13, override it to 3.12 when creating the environment.
+
 ```bash
 cd backend
-python -m venv .venv
+
+# Create virtual environment with Python 3.12
+# On macOS / Linux:
+python3.12 -m venv .venv
+# On Windows (using the Python Launcher):
+py -3.12 -m venv .venv
+
+# Activate virtual environment
+# On macOS / Linux:
 source .venv/bin/activate
+# On Windows PowerShell:
+.venv\Scripts\Activate.ps1
 ```
 
 ### 2. Install dependencies
