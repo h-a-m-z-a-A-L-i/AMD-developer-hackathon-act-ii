@@ -477,6 +477,29 @@ def _stream_pipeline_events(patient_row: dict):
     yield f"data: {json.dumps(summary)}\n\n"
 
 
+@app.get("/api/analyze/custom/validate", tags=["complication-screening"])
+def validate_custom_patient(payload: CustomPatientInput = Depends(_custom_patient_query_params)):
+    """Validation-only check for custom-patient input: 200 if the values pass
+    CUSTOM_PATIENT_BOUNDS, 422 (via the same validation_error_handler as every
+    other endpoint) if not. Runs NO pipeline, NO LLM calls, and opens no SSE
+    stream - it exists purely so the frontend can pre-flight-check a form
+    submission before opening the real EventSource.
+
+    This replaces an earlier approach where the frontend GET'd the actual
+    /api/analyze/custom/stream endpoint just to read its status code, then
+    discarded the response without closing it. That silently ran the full
+    multi-agent pipeline a second time (doubling LLM calls and skewing the
+    Benchmark tab's counters) AND left a live text/event-stream HTTP
+    connection open forever, since the frontend never consumed or cancelled
+    the response body. Repeated custom-patient submissions leaked one
+    connection each, eventually exhausting the browser's per-origin
+    connection limit (6 for HTTP/1.1) so the *next* EventSource - dataset or
+    custom - couldn't open at all and immediately errored out.
+    """
+    _build_custom_patient_row(payload)  # reuses the same sex-normalization/validation path
+    return {"valid": True}
+
+
 @app.get("/api/analyze/custom/stream", tags=["complication-screening"])
 def analyze_custom_patient_stream(payload: CustomPatientInput = Depends(_custom_patient_query_params)):
     """Streaming (SSE) counterpart to POST /api/analyze/custom, for a custom

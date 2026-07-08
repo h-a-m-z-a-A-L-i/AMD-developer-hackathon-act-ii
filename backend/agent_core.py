@@ -17,6 +17,7 @@ public GitHub repo. Only .env.example (with blank values) should be committed.
 """
 
 import os
+import time
 import traceback
 
 try:
@@ -35,8 +36,17 @@ FEATHERLESS_API_KEY = os.environ.get("FEATHERLESS_API_KEY", "")
 FEATHERLESS_MODEL = os.environ.get("FEATHERLESS_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 FEATHERLESS_URL = "https://api.featherless.ai/v1/chat/completions"
 
-# Cache so we only test connectivity once per process, not once per specialist.
-_STATUS_CACHE = {"checked": False, "provider": None}
+# Cache connectivity checks so we don't ping the provider on every single
+# specialist call. Success is cached for a long time (a working provider
+# rarely needs re-verifying). A FAILURE is cached only briefly - a transient
+# blip (cold connection, momentary rate limit) on the very first ping must
+# not lock the whole server process into "offline" for its entire lifetime.
+# Previously a negative result was cached forever (checked=True stuck True),
+# which is exactly what caused custom-patient analyses to permanently show
+# "LLM OFFLINE" even though the provider was reachable seconds later.
+_STATUS_CACHE = {"checked_at": 0.0, "provider": None}
+_SUCCESS_TTL_SECONDS = 300   # re-verify a healthy provider every 5 minutes
+_FAILURE_TTL_SECONDS = 15    # retry quickly after a failure instead of forever
 
 # Counts actual call_llm() invocations (including retries), so the Benchmark tab
 # can show a real number. Reset at the start of each /api/analyze request.
@@ -101,11 +111,16 @@ _PROVIDERS = [
 
 def get_llm_status() -> str | None:
     """
-    Tests each configured backend ONCE per process (cached after that) with a
-    trivial ping call, and returns the name of the first one that actually
-    works, or None if every backend is offline/unreachable.
+    Tests each configured backend with a trivial ping call and returns the
+    name of the first one that actually works, or None if every backend is
+    offline/unreachable. Result is cached with a TTL rather than forever:
+    a success is trusted for _SUCCESS_TTL_SECONDS, a failure only for
+    _FAILURE_TTL_SECONDS, so a single transient blip on the first ping can't
+    permanently mislabel the whole process as offline.
     """
-    if _STATUS_CACHE["checked"]:
+    now = time.monotonic()
+    ttl = _SUCCESS_TTL_SECONDS if _STATUS_CACHE["provider"] else _FAILURE_TTL_SECONDS
+    if now - _STATUS_CACHE["checked_at"] < ttl:
         return _STATUS_CACHE["provider"]
 
     for name, fn in _PROVIDERS:
@@ -118,7 +133,7 @@ def get_llm_status() -> str | None:
     else:
         _STATUS_CACHE["provider"] = None
 
-    _STATUS_CACHE["checked"] = True
+    _STATUS_CACHE["checked_at"] = now
     return _STATUS_CACHE["provider"]
 
 
