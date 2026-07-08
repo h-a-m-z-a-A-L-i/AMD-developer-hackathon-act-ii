@@ -40,12 +40,14 @@ export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
       <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Labs</h3>
       <div className="space-y-3">
         {buildRows(labs).map((row) => {
-          const pct = Math.max(0, Math.min(100, (row.value / row.max) * 100));
+          const hasValue = typeof row.value === "number" && !isNaN(row.value);
+          const valText = hasValue ? row.value.toFixed(row.decimals) : "--";
+          const pct = hasValue ? Math.max(0, Math.min(100, (row.value / row.max) * 100)) : 0;
           return (
             <div key={row.label} className="rounded-xl p-2 transition-colors duration-150 hover:bg-slate-50/50">
               <div className="mb-1.5 flex justify-between text-sm">
                 <span className="font-semibold text-slate-700">{row.label}</span>
-                <span className="font-mono text-slate-500">{row.value.toFixed(row.decimals)} / {row.max} {row.unit}</span>
+                <span className="font-mono text-slate-500">{valText} / {row.max} {row.unit}</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100">
                 <div className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-600" style={{ width: `${pct}%` }} />

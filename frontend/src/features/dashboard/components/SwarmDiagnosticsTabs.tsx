@@ -5,6 +5,7 @@ import { SpecialistResult, SynthesisReport, BenchmarkSummary } from "@/types";
 import { PipelineVisualizer } from "./PipelineVisualizer";
 import { OrganRiskMap } from "./OrganRiskMap";
 import { SynthesisCallout } from "./SynthesisCallout";
+import { ClinicalWarningLegend } from "./ClinicalWarningLegend";
 
 interface SwarmDiagnosticsTabsProps {
   specialists: SpecialistResult[];
@@ -187,6 +188,7 @@ export function SwarmDiagnosticsTabs({
                   synthesis={synthesis}
                   isLoading={isLoading}
                 />
+                <ClinicalWarningLegend />
               </div>
             </div>
           </div>

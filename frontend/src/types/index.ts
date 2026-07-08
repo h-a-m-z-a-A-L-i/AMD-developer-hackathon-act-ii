@@ -72,3 +72,17 @@ export interface StreamEvent {
   llm_calls_made?: number;
   provider?: "fireworks" | "featherless" | null;
 }
+
+export interface CustomPatientInput {
+  age: number;
+  sex: "M" | "F";
+  years_with_diabetes: number;
+  a1c_percent: number;
+  egfr: number;
+  uacr_mg_g: number;
+  creatinine_mg_dl: number;
+  ldl_mg_dl: number;
+  hdl_mg_dl: number;
+  triglycerides_mg_dl: number;
+  systolic_bp: number;
+}

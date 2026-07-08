@@ -7,6 +7,7 @@ import { LiveAgentTerminal } from "@/features/dashboard/components/LiveAgentTerm
 import { ReportExport } from "@/features/dashboard/components/ReportExport";
 import { WelcomeModal } from "@/features/dashboard/components/WelcomeModal";
 import { SwarmDiagnosticsTabs } from "@/features/dashboard/components/SwarmDiagnosticsTabs";
+import { CustomPatientModal } from "@/features/dashboard/components/CustomPatientModal";
 import type {
   PatientDropdownItem,
   Demographics,
@@ -14,6 +15,7 @@ import type {
   SpecialistResult,
   SynthesisReport,
   BenchmarkSummary,
+  CustomPatientInput,
 } from "@/types";
 
 const specialistLabels: Record<string, string> = {
@@ -42,6 +44,10 @@ export default function DashboardPage() {
   // Onboarding welcome modal state
   const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
+
+  // Custom patient modal states
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState<boolean>(false);
+  const [backendFieldErrors, setBackendFieldErrors] = useState<Record<string, string>>({});
 
   // Real-time terminal logs state
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
@@ -113,8 +119,8 @@ export default function DashboardPage() {
     }
   }, [selectedPatientId, patients]);
 
-  function triggerPipelineAnalysis(patientId: string) {
-    if (!patientId) return;
+  function triggerPipelineAnalysis(patientId: string | null, customData?: CustomPatientInput) {
+    if (!patientId && !customData) return;
 
     // Reset pipeline state
     setSpecialists([]);
@@ -123,23 +129,50 @@ export default function DashboardPage() {
     setLabs(null);
     setErrorMessage("");
     setIsPipelineRunning(true);
-
-    // Reset Demographics preview with baseline data from selector
-    const selected = patients.find((p) => p.patient_id === patientId);
-    if (selected) {
-      setDemographics({
-        age: selected.age,
-        sex: selected.sex,
-        a1c_percent: selected.a1c_percent,
-        years_with_diabetes: 0,
-      });
-    }
-
-    // backend SSE event (pipeline_start, per-specialist, synthesis, pipeline_complete)
     setTerminalLogs([]);
 
+    let url = "";
+
+    if (customData) {
+      // Set initial demographics preview
+      setDemographics({
+        age: customData.age,
+        sex: customData.sex,
+        a1c_percent: customData.a1c_percent,
+        years_with_diabetes: customData.years_with_diabetes,
+      });
+
+      // Construct search params matching CustomPatientInput
+      const params = new URLSearchParams({
+        age: String(customData.age),
+        sex: customData.sex,
+        years_with_diabetes: String(customData.years_with_diabetes),
+        a1c_percent: String(customData.a1c_percent),
+        egfr: String(customData.egfr),
+        uacr_mg_g: String(customData.uacr_mg_g),
+        creatinine_mg_dl: String(customData.creatinine_mg_dl),
+        ldl_mg_dl: String(customData.ldl_mg_dl),
+        hdl_mg_dl: String(customData.hdl_mg_dl),
+        triglycerides_mg_dl: String(customData.triglycerides_mg_dl),
+        systolic_bp: String(customData.systolic_bp),
+      });
+      url = `/api/analyze/custom/stream?${params.toString()}`;
+    } else if (patientId) {
+      // Reset Demographics preview with baseline data from selector
+      const selected = patients.find((p) => p.patient_id === patientId);
+      if (selected) {
+        setDemographics({
+          age: selected.age,
+          sex: selected.sex,
+          a1c_percent: selected.a1c_percent,
+          years_with_diabetes: 0,
+        });
+      }
+      url = `/api/analyze/${patientId}/stream`;
+    }
+
     // Initialize Server-Sent Events stream connection
-    const es = new EventSource(`/api/analyze/${patientId}/stream`);
+    const es = new EventSource(url);
 
     es.onmessage = (e) => {
       const event = JSON.parse(e.data);
@@ -150,10 +183,15 @@ export default function DashboardPage() {
           : "deterministic rule-based fallback - LLM offline";
         setTerminalLogs((prev) => [
           ...prev,
-          `> [SYSTEM] Loading patient ${event.patient_id} from NHANES 2017-2018 dataset...`,
+          `> [SYSTEM] Loading patient ${event.patient_id} ${customData ? '(Custom Input)' : 'from NHANES 2017-2018 dataset'}...`,
           `> [SYSTEM] Dispatching ${event.agents.length} specialist agents: ${event.agents.join(", ")}`,
           `> [SYSTEM] Execution mode: ${providerLabel}`,
         ]);
+        
+        // Save the patient ID from start event (e.g. CUSTOM-XXXX) so selectors look consistent
+        if (customData) {
+          setSelectedPatientId(event.patient_id);
+        }
         return;
       }
 
@@ -225,6 +263,53 @@ export default function DashboardPage() {
     };
   }
 
+  const handleCustomPatientSubmit = async (data: CustomPatientInput) => {
+    setIsCustomModalOpen(false);
+    setBackendFieldErrors({});
+    
+    // Convert to query params
+    const params = new URLSearchParams({
+      age: String(data.age),
+      sex: data.sex,
+      years_with_diabetes: String(data.years_with_diabetes),
+      a1c_percent: String(data.a1c_percent),
+      egfr: String(data.egfr),
+      uacr_mg_g: String(data.uacr_mg_g),
+      creatinine_mg_dl: String(data.creatinine_mg_dl),
+      ldl_mg_dl: String(data.ldl_mg_dl),
+      hdl_mg_dl: String(data.hdl_mg_dl),
+      triglycerides_mg_dl: String(data.triglycerides_mg_dl),
+      systolic_bp: String(data.systolic_bp),
+    });
+
+    // 1. Dry run validation check to capture any 422 validations
+    try {
+      setIsPipelineRunning(true);
+      setErrorMessage("");
+      const checkRes = await fetch(`/api/analyze/custom/stream?${params.toString()}`);
+      if (!checkRes.ok) {
+        const errData = await checkRes.json();
+        if (errData.fields) {
+          const mapped: Record<string, string> = {};
+          for (const f of errData.fields) mapped[f.field] = f.message;
+          setBackendFieldErrors(mapped);
+          setIsCustomModalOpen(true); // Re-open form modal to show errors
+        } else {
+          setErrorMessage(errData.message || "Custom input validation failed.");
+        }
+        setIsPipelineRunning(false);
+        return;
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Failed to contact validation endpoint.");
+      setIsPipelineRunning(false);
+      return;
+    }
+
+    // 2. Trigger the actual SSE streaming flow
+    triggerPipelineAnalysis(null, data);
+  };
+
   const handleCloseWelcome = () => {
     setIsWelcomeOpen(false);
     localStorage.setItem("glycoswarm_onboarded", "true");
@@ -243,6 +328,16 @@ export default function DashboardPage() {
 
       {/* Onboarding Welcome Modal */}
       <WelcomeModal isOpen={isWelcomeOpen} onClose={handleCloseWelcome} />
+
+      {/* Custom Patient Input Form Modal */}
+      <CustomPatientModal
+        isOpen={isCustomModalOpen}
+        onClose={() => setIsCustomModalOpen(false)}
+        onSubmit={handleCustomPatientSubmit}
+        isSubmitting={isPipelineRunning}
+        backendFieldErrors={backendFieldErrors}
+        clearBackendErrors={() => setBackendFieldErrors({})}
+      />
 
       {/* Sticky Header */}
       <header className="sticky top-0 z-30 -mx-4 border-b border-slate-200 mt-0 bg-slate-50/90 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6 sm:py-2.5 lg:-mx-12 lg:px-12">
@@ -275,7 +370,7 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Controls row: selector pill + desktop info button */}
+          {/* Controls row: selector pill + custom button + desktop info button */}
           <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
             {/* Patient selector + Analyze button pill */}
             <div className="flex flex-1 lg:flex-none flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 sm:px-4 sm:py-2.5 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
@@ -307,6 +402,19 @@ export default function DashboardPage() {
                 {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
               </button>
             </div>
+
+            {/* Custom Patient Trigger Button */}
+            <button
+              onClick={() => setIsCustomModalOpen(true)}
+              disabled={isPipelineRunning}
+              className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:px-4 sm:py-2.5 text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 flex items-center justify-center gap-1.5 flex-shrink-0"
+              title="Add Custom Patient Labs"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline text-sm font-semibold">Custom Patient</span>
+            </button>
 
             {/* Desktop Info button */}
             <button
@@ -357,14 +465,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Column: Console Output & Lab Panels */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        <div className="lg:col-span-4 flex flex-col gap-6 lg:pt-[70px]">
+          <LabsPanel labs={labs} isLoading={isPipelineRunning} />
           <LiveAgentTerminal
             terminalLogs={terminalLogs}
             isLoading={isPipelineRunning}
             llmStatus={llmStatus}
             llmModel={llmModel}
           />
-          <LabsPanel labs={labs} isLoading={isPipelineRunning} />
         </div>
 
         {/* Full-Width Footer Actions: Clinical Brief & Print Actions */}
