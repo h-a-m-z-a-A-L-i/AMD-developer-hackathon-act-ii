@@ -55,6 +55,7 @@ app.add_middleware(
 # frontend shouldn't have to know our internal field names to show a decent
 # message ("Age" reads better than "age", "A1c %" better than "a1c_percent").
 _FIELD_LABELS = {
+    "name": "Name",
     "age": "Age",
     "sex": "Sex",
     "years_with_diabetes": "Years with diabetes",
@@ -186,6 +187,7 @@ def _run_pipeline_and_build_response(patient_row: dict) -> dict:
     return {
         "patient_id": str(patient_row["patient_id"]),
         "demographics": {
+            "name": str(patient_row.get("name") or ""),
             "age": int(patient_row["age"]),
             "sex": str(patient_row["sex"]),
             "a1c_percent": float(patient_row["a1c_percent"]),
@@ -229,6 +231,7 @@ class CustomPatientInput(BaseModel):
     with unusual-but-plausible values.
     """
 
+    name: Optional[str] = Field(None, max_length=100, description="Optional display name for this custom patient (not used by the pipeline, display-only).")
     age: float = Field(..., ge=CUSTOM_PATIENT_BOUNDS["age"][0], le=CUSTOM_PATIENT_BOUNDS["age"][1])
     sex: str
     years_with_diabetes: float = Field(..., ge=CUSTOM_PATIENT_BOUNDS["years_with_diabetes"][0], le=CUSTOM_PATIENT_BOUNDS["years_with_diabetes"][1])
@@ -244,6 +247,7 @@ class CustomPatientInput(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
+                "name": "Jane Doe",
                 "age": 55,
                 "sex": "F",
                 "years_with_diabetes": 17,
@@ -260,6 +264,7 @@ class CustomPatientInput(BaseModel):
 
 
 def _custom_patient_query_params(
+    name: Optional[str] = Query(None, max_length=100),
     age: float = Query(..., ge=CUSTOM_PATIENT_BOUNDS["age"][0], le=CUSTOM_PATIENT_BOUNDS["age"][1]),
     sex: str = Query(...),
     years_with_diabetes: float = Query(..., ge=CUSTOM_PATIENT_BOUNDS["years_with_diabetes"][0], le=CUSTOM_PATIENT_BOUNDS["years_with_diabetes"][1]),
@@ -281,6 +286,7 @@ def _custom_patient_query_params(
     two can't silently drift apart.
     """
     return CustomPatientInput(
+        name=name,
         age=age,
         sex=sex,
         years_with_diabetes=years_with_diabetes,
@@ -318,6 +324,7 @@ def _build_custom_patient_row(payload: CustomPatientInput) -> dict:
 
     return {
         "patient_id": placeholder_id,
+        "name": (payload.name or "").strip(),
         "age": payload.age,
         "sex": sex,
         "years_with_diabetes": payload.years_with_diabetes,
