@@ -8,6 +8,7 @@ import { ReportExport } from "@/features/dashboard/components/ReportExport";
 import { WelcomeModal } from "@/features/dashboard/components/WelcomeModal";
 import { SwarmDiagnosticsTabs } from "@/features/dashboard/components/SwarmDiagnosticsTabs";
 import { CustomPatientModal } from "@/features/dashboard/components/CustomPatientModal";
+import { generateBrief } from "@/lib/generateBrief";
 import type {
   PatientDropdownItem,
   Demographics,
@@ -51,6 +52,18 @@ export default function DashboardPage() {
 
   // Real-time terminal logs state
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+
+  // Auto-generated clinical brief state
+  const [clinicalBrief, setClinicalBrief] = useState<string>("");
+
+  // Tracks the active custom patient ID separately so a custom run never
+  // overwrites the dataset dropdown’s selectedPatientId. Cleared when the
+  // user switches back to a dataset patient.
+  const [customPatientId, setCustomPatientId] = useState<string | null>(null);
+
+  // The ID to show in the header, brief, and other display components.
+  // Prefers the custom patient when one is active.
+  const displayPatientId = customPatientId || selectedPatientId;
 
   useEffect(() => {
     async function loadPatients() {
@@ -115,6 +128,8 @@ export default function DashboardPage() {
         setSynthesis(null);
         setBenchmark(null);
         setTerminalLogs([]);
+        setClinicalBrief("");
+        setCustomPatientId(null); // switching to dataset — clear any active custom session
       }
     }
   }, [selectedPatientId, patients]);
@@ -130,6 +145,19 @@ export default function DashboardPage() {
     setErrorMessage("");
     setIsPipelineRunning(true);
     setTerminalLogs([]);
+    setClinicalBrief("");
+    if (!customData) {
+      // Switching to a dataset patient — clear any lingering custom session
+      setCustomPatientId(null);
+    }
+
+    // Local accumulators — used to generate the brief at pipeline_complete
+    // without relying on stale React state captured in the closure.
+    let localSpecialists: any[] = [];
+    let localSynthesis: any = null;
+    let localLabs: Record<string, number> = {};
+    let localDemographics: any = null;
+    let localPatientId = patientId ?? "";
 
     let url = "";
 
@@ -190,10 +218,17 @@ export default function DashboardPage() {
           `> [SYSTEM] Execution mode: ${providerLabel}`,
         ]);
         
-        // Save the patient ID from start event (e.g. CUSTOM-XXXX) so selectors look consistent
+        // Save the custom patient ID for display (header, brief etc.) WITHOUT
+        // overwriting the dataset dropdown’s selectedPatientId, so switching back
+        // to a dataset patient after this run works immediately.
         if (customData) {
-          setSelectedPatientId(event.patient_id);
+          localPatientId = event.patient_id;
+          setCustomPatientId(event.patient_id);
         }
+        // Capture initial demographics into local snapshot
+        localDemographics = customData
+          ? { name: customData.name, age: customData.age, sex: customData.sex, a1c_percent: customData.a1c_percent, years_with_diabetes: customData.years_with_diabetes }
+          : null;
         return;
       }
 
@@ -208,16 +243,22 @@ export default function DashboardPage() {
         setTerminalLogs((prev) => [
           ...prev,
           `> [SYSTEM] Swarm pipeline execution finished in ${event.total_duration_ms} ms.`,
-          `> [SYSTEM] Provider mode: ${event.provider || "Rule-based Fallback (offline)"}.`
+          `> [SYSTEM] Provider mode: ${event.provider || "Rule-based Fallback (offline)"}.`,
         ]);
 
         es.close();
         setIsPipelineRunning(false);
+
+        // Generate the brief synchronously in the browser — instant, no network call
+        if (localPatientId && localDemographics && localSynthesis && localSpecialists.length > 0) {
+          setClinicalBrief(generateBrief(localPatientId, localDemographics, localLabs as any, localSpecialists, localSynthesis));
+        }
         return;
       }
 
       if (event.stage === "synthesis") {
         const synthesisResult = event.data["synthesis"];
+        localSynthesis = synthesisResult;  // capture for brief generation
         setSynthesis(synthesisResult);
         setTerminalLogs((prev) => [
           ...prev,
@@ -226,14 +267,19 @@ export default function DashboardPage() {
       } else {
         const result = event.data[`${event.stage}_result`];
 
-        // Append specialist results safely
+        // Accumulate locally for brief generation
+        localSpecialists = localSpecialists.filter((s) => s.specialist !== result.specialist);
+        localSpecialists = [...localSpecialists, result];
+
+        // Append specialist results to React state safely
         setSpecialists((prev) => {
           const filtered = prev.filter((s) => s.specialist !== result.specialist);
           return [...filtered, result];
         });
 
-        // Accumulate lab readings in-place
+        // Accumulate lab readings in-place (local + React state)
         if (result.input_labs) {
+          localLabs = { ...localLabs, ...result.input_labs };
           setLabs((prev) => ({
             ...(prev || {}),
             ...result.input_labs,
@@ -242,18 +288,29 @@ export default function DashboardPage() {
 
         // Extract years_with_diabetes to demographics if retrieved
         if (result.specialist === "neuropathy" && result.input_labs?.years_with_diabetes) {
+          if (localDemographics) {
+            localDemographics = { ...localDemographics, years_with_diabetes: result.input_labs.years_with_diabetes };
+          }
           setDemographics((prev) => prev ? {
             ...prev,
             years_with_diabetes: result.input_labs.years_with_diabetes,
           } : null);
         }
 
-        const name = specialistLabels[result.specialist] || result.specialist.toUpperCase();
+        // For dataset patients, capture demographics from first specialist's input_labs context
+        if (!customData && !localDemographics && result.input_labs) {
+          const sel = patients.find((p) => p.patient_id === patientId);
+          if (sel) {
+            localDemographics = { age: sel.age, sex: sel.sex, a1c_percent: sel.a1c_percent, years_with_diabetes: result.input_labs.years_with_diabetes ?? 0 };
+          }
+        }
+
+        const label = specialistLabels[result.specialist] || result.specialist.toUpperCase();
         const flagMarker = result.flag ? "⚠️ FLAGGED" : "clear";
         setTerminalLogs((prev) => [
           ...prev,
-          `> [${name}] risk=${result.risk_score.toFixed(2)} [${flagMarker}]`,
-          `> [${name}] -> ${result.reasoning}`
+          `> [${label}] risk=${result.risk_score.toFixed(2)} [${flagMarker}]`,
+          `> [${label}] -> ${result.reasoning}`
         ]);
       }
     };
@@ -289,7 +346,7 @@ export default function DashboardPage() {
     try {
       setIsPipelineRunning(true);
       setErrorMessage("");
-      const checkRes = await fetch(`/api/analyze/custom/stream?${params.toString()}`);
+      const checkRes = await fetch(`/api/analyze/custom/validate?${params.toString()}`);
       if (!checkRes.ok) {
         const errData = await checkRes.json();
         if (errData.fields) {
@@ -376,7 +433,7 @@ export default function DashboardPage() {
           {/* Controls row: selector pill + custom button + desktop info button */}
           <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
             {/* Patient selector + Analyze button pill */}
-            <div className="flex flex-1 lg:flex-none flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 sm:px-4 sm:py-2.5 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
+            <div className="flex flex-1 lg:flex-none flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 rounded-full border border-slate-200 bg-white p-1.5 sm:pl-5 sm:pr-1.5 sm:py-1.5 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
               <label htmlFor="patient-select" className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-slate-400 px-1 sm:px-0">
                 Select Record:
               </label>
@@ -400,7 +457,7 @@ export default function DashboardPage() {
               <button
                 onClick={() => triggerPipelineAnalysis(selectedPatientId)}
                 disabled={isPipelineRunning || !selectedPatientId}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 shadow-sm w-full sm:w-auto flex-shrink-0"
+                className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 shadow-sm w-full sm:w-auto flex-shrink-0"
               >
                 {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
               </button>
@@ -410,7 +467,7 @@ export default function DashboardPage() {
             <button
               onClick={() => setIsCustomModalOpen(true)}
               disabled={isPipelineRunning}
-              className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:px-4 sm:py-2.5 text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 flex items-center justify-center gap-1.5 flex-shrink-0"
+              className="rounded-full border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 flex items-center justify-center gap-1.5 flex-shrink-0"
               title="Add Custom Patient Labs"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,7 +503,7 @@ export default function DashboardPage() {
 
       {/* Patient Overview Summary Card */}
       <PatientOverviewHeader
-        patientId={selectedPatientId || null}
+        patientId={displayPatientId || null}
         demographics={demographics}
         labs={labs}
       />
@@ -460,7 +517,7 @@ export default function DashboardPage() {
             specialists={specialists}
             synthesis={synthesis}
             isLoading={isPipelineRunning}
-            patientId={selectedPatientId || null}
+            patientId={displayPatientId || null}
             llmStatus={llmStatus}
             llmModel={llmModel}
             benchmark={benchmark}
@@ -481,11 +538,13 @@ export default function DashboardPage() {
         {/* Full-Width Footer Actions: Clinical Brief & Print Actions */}
         <div className="lg:col-span-12">
           <ReportExport
-            patientId={selectedPatientId || null}
+            patientId={displayPatientId || null}
             demographics={demographics}
             labs={labs}
             specialists={specialists}
             synthesis={synthesis}
+            clinicalBrief={clinicalBrief}
+            isBriefLoading={false}
           />
         </div>
       </section>

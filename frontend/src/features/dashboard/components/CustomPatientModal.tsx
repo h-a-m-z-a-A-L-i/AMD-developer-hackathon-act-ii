@@ -159,137 +159,137 @@ export function CustomPatientModal({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Section 1: Demographics */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Demographics & Profile</h3>
-              
+          {/* Row 1: Section headers */}
+          <div className="grid grid-cols-2 gap-6">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Demographics & Profile</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Renal Function</h3>
+          </div>
+
+          {/* Row 2: Full Name (left) | eGFR (right) — same visual row */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Jane Doe"
+                value={form.name || ""}
+                onChange={(e) => handleChange("name", e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+              />
+              {backendFieldErrors.name && (
+                <p className="text-[10px] text-rose-500 mt-1">{backendFieldErrors.name}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">eGFR (mL/min/1.73m²)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={form.egfr}
+                onChange={(e) => handleChange("egfr", parseFloat(e.target.value) || 0)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
+              />
+              {(localErrors.egfr || backendFieldErrors.egfr) && (
+                <p className="text-[10px] text-rose-500 mt-1">{localErrors.egfr || backendFieldErrors.egfr}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Row 3: Age + Sex (left) | UACR + Creatinine (right) */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Age + Sex sub-grid */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name (Optional)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Age</label>
                 <input
-                  type="text"
-                  placeholder="e.g. Jane Doe"
-                  value={form.name || ""}
-                  onChange={(e) => handleChange("name", e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+                  type="number"
+                  step="1"
+                  value={form.age}
+                  onChange={(e) => handleChange("age", parseInt(e.target.value) || 0)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
-                {backendFieldErrors.name && (
-                  <p className="text-[10px] text-rose-500 mt-1">{backendFieldErrors.name}</p>
+                {(localErrors.age || backendFieldErrors.age) && (
+                  <p className="text-[10px] text-rose-500 mt-1">{localErrors.age || backendFieldErrors.age}</p>
                 )}
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Age</label>
-                  <input
-                    type="number"
-                    step="1"
-                    value={form.age}
-                    onChange={(e) => handleChange("age", parseInt(e.target.value) || 0)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                  {(localErrors.age || backendFieldErrors.age) && (
-                    <p className="text-[10px] text-rose-500 mt-1">{localErrors.age || backendFieldErrors.age}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Sex</label>
-                  <select
-                    value={form.sex}
-                    onChange={(e) => handleChange("sex", e.target.value as "M" | "F")}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="M">Male (M)</option>
-                    <option value="F">Female (F)</option>
-                  </select>
-                  {backendFieldErrors.sex && (
-                    <p className="text-[10px] text-rose-500 mt-1">{backendFieldErrors.sex}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Diabetic Duration (Years)</label>
-                  <input
-                    type="number"
-                    step="1"
-                    value={form.years_with_diabetes}
-                    onChange={(e) => handleChange("years_with_diabetes", parseInt(e.target.value) || 0)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                  {(localErrors.years_with_diabetes || backendFieldErrors.years_with_diabetes) && (
-                    <p className="text-[10px] text-rose-500 mt-1">{localErrors.years_with_diabetes || backendFieldErrors.years_with_diabetes}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">HbA1c (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={form.a1c_percent}
-                    onChange={(e) => handleChange("a1c_percent", parseFloat(e.target.value) || 0)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                  {(localErrors.a1c_percent || backendFieldErrors.a1c_percent) && (
-                    <p className="text-[10px] text-rose-500 mt-1">{localErrors.a1c_percent || backendFieldErrors.a1c_percent}</p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Sex</label>
+                <select
+                  value={form.sex}
+                  onChange={(e) => handleChange("sex", e.target.value as "M" | "F")}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="M">Male (M)</option>
+                  <option value="F">Female (F)</option>
+                </select>
+                {backendFieldErrors.sex && (
+                  <p className="text-[10px] text-rose-500 mt-1">{backendFieldErrors.sex}</p>
+                )}
               </div>
             </div>
-
-            {/* Section 2: Renal Panel */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Renal Function</h3>
-              
+            {/* UACR + Creatinine sub-grid */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">eGFR (mL/min/1.73m²)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">UACR (mg/g)</label>
                 <input
                   type="number"
                   step="0.1"
-                  value={form.egfr}
-                  onChange={(e) => handleChange("egfr", parseFloat(e.target.value) || 0)}
+                  value={form.uacr_mg_g}
+                  onChange={(e) => handleChange("uacr_mg_g", parseFloat(e.target.value) || 0)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
-                {(localErrors.egfr || backendFieldErrors.egfr) && (
-                  <p className="text-[10px] text-rose-500 mt-1">{localErrors.egfr || backendFieldErrors.egfr}</p>
+                {(localErrors.uacr_mg_g || backendFieldErrors.uacr_mg_g) && (
+                  <p className="text-[10px] text-rose-500 mt-1">{localErrors.uacr_mg_g || backendFieldErrors.uacr_mg_g}</p>
                 )}
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">UACR (mg/g)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={form.uacr_mg_g}
-                    onChange={(e) => handleChange("uacr_mg_g", parseFloat(e.target.value) || 0)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                  {(localErrors.uacr_mg_g || backendFieldErrors.uacr_mg_g) && (
-                    <p className="text-[10px] text-rose-500 mt-1">{localErrors.uacr_mg_g || backendFieldErrors.uacr_mg_g}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Creatinine (mg/dL)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.creatinine_mg_dl}
-                    onChange={(e) => handleChange("creatinine_mg_dl", parseFloat(e.target.value) || 0)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                  {(localErrors.creatinine_mg_dl || backendFieldErrors.creatinine_mg_dl) && (
-                    <p className="text-[10px] text-rose-500 mt-1">{localErrors.creatinine_mg_dl || backendFieldErrors.creatinine_mg_dl}</p>
-                  )}
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Creatinine (mg/dL)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.creatinine_mg_dl}
+                  onChange={(e) => handleChange("creatinine_mg_dl", parseFloat(e.target.value) || 0)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
+                />
+                {(localErrors.creatinine_mg_dl || backendFieldErrors.creatinine_mg_dl) && (
+                  <p className="text-[10px] text-rose-500 mt-1">{localErrors.creatinine_mg_dl || backendFieldErrors.creatinine_mg_dl}</p>
+                )}
               </div>
             </div>
+          </div>
 
+          {/* Row 4: Diabetic Duration + HbA1c (left) | empty (right, balanced) */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Diabetes Duration(yrs)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={form.years_with_diabetes}
+                  onChange={(e) => handleChange("years_with_diabetes", parseInt(e.target.value) || 0)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
+                />
+                {(localErrors.years_with_diabetes || backendFieldErrors.years_with_diabetes) && (
+                  <p className="text-[10px] text-rose-500 mt-1">{localErrors.years_with_diabetes || backendFieldErrors.years_with_diabetes}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">HbA1c (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={form.a1c_percent}
+                  onChange={(e) => handleChange("a1c_percent", parseFloat(e.target.value) || 0)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
+                />
+                {(localErrors.a1c_percent || backendFieldErrors.a1c_percent) && (
+                  <p className="text-[10px] text-rose-500 mt-1">{localErrors.a1c_percent || backendFieldErrors.a1c_percent}</p>
+                )}
+              </div>
+            </div>
+            {/* Right side intentionally empty to balance the grid */}
+            <div />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-100">

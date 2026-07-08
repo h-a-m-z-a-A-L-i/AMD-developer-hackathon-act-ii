@@ -15,13 +15,23 @@ export function PatientOverviewHeader({ patientId, demographics, labs }: Patient
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5 transition-all duration-200 hover:shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-4 sm:px-6 sm:py-5">
         <div>
-          <p className="text-base font-semibold text-slate-900">
-            Patient {patientId}
-            {demographics.name && ` - ${demographics.name}`}
-          </p>
-          <p className="mt-0.5 text-sm text-slate-500">
+          {demographics.name ? (
+            <>
+              <p className="text-base font-semibold text-slate-900">
+                Name: {demographics.name.charAt(0).toUpperCase() + demographics.name.slice(1)}
+              </p>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                Patient ID: {patientId}
+              </p>
+            </>
+          ) : (
+            <p className="text-base font-semibold text-slate-900">
+              Patient {patientId}
+            </p>
+          )}
+          <p className="mt-1 text-sm text-slate-500">
             {demographics.sex} &middot; age {demographics.age} &middot; HbA1c {demographics.a1c_percent}%
           </p>
         </div>
