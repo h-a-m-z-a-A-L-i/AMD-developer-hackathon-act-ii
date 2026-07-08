@@ -207,6 +207,17 @@ def analyze_patient_stream(patient_id: str):
         reset_llm_call_counter()
         pipeline_start = time.perf_counter()
 
+        # Real data about what's about to run - not flavor text. The frontend
+        # renders this verbatim instead of hardcoding its own opening lines.
+        start_event = {
+            "stage": "pipeline_start",
+            "patient_id": str(patient_row["patient_id"]),
+            "agents": ["renal", "neuropathy", "retinal", "cardiovascular"],
+            "provider": get_llm_status(),
+            "timestamp": time.time(),
+        }
+        yield f"data: {json.dumps(start_event)}\n\n"
+
         for node_name, node_output in run_patient_streaming(graph_flow, patient_row):
             event = {"stage": node_name, "data": node_output, "timestamp": time.time()}
             yield f"data: {json.dumps(event)}\n\n"

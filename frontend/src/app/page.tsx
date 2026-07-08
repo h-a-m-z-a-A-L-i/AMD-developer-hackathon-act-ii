@@ -133,21 +133,27 @@ export default function DashboardPage() {
       });
     }
 
-    // Initialize System Log
-    const initLogs = [
-      "> [SYSTEM] Initializing Diabetic Complication Swarm Engine...",
-      "> [SYSTEM] Loading NHANES 2017-2018 patient records structured matrix...",
-      "> [SYSTEM] Dispatching specialist analysis agents...",
-      "> [SYSTEM] Running live backend pipeline workflow...",
-      "> [SWARM] Broadcasting patient demographics through backend services..."
-    ];
-    setTerminalLogs(initLogs);
+    // backend SSE event (pipeline_start, per-specialist, synthesis, pipeline_complete)
+    setTerminalLogs([]);
 
     // Initialize Server-Sent Events stream connection
     const es = new EventSource(`/api/analyze/${patientId}/stream`);
 
     es.onmessage = (e) => {
       const event = JSON.parse(e.data);
+
+      if (event.stage === "pipeline_start") {
+        const providerLabel = event.provider
+          ? `LLM sandbox (${event.provider})`
+          : "deterministic rule-based fallback - LLM offline";
+        setTerminalLogs((prev) => [
+          ...prev,
+          `> [SYSTEM] Loading patient ${event.patient_id} from NHANES 2017-2018 dataset...`,
+          `> [SYSTEM] Dispatching ${event.agents.length} specialist agents: ${event.agents.join(", ")}`,
+          `> [SYSTEM] Execution mode: ${providerLabel}`,
+        ]);
+        return;
+      }
 
       if (event.stage === "pipeline_complete") {
         setBenchmark({
@@ -228,8 +234,8 @@ export default function DashboardPage() {
       {/* Onboarding Welcome Modal */}
       <WelcomeModal isOpen={isWelcomeOpen} onClose={handleCloseWelcome} />
 
-      {/* CatalystMD-Style Header */}
-      <header className="flex flex-col gap-5 border-b border-slate-200 pb-6 md:flex-row md:items-center md:justify-between">
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-30 -mx-4 flex flex-col gap-5 border-b border-slate-200 bg-slate-50/90 px-4 pb-6 pt-4 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-12 lg:px-12 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">
@@ -237,27 +243,13 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
               DiaSentry
             </h1>
           </div>
-          <p className="text-sm font-semibold text-slate-500">
-            AI-Powered Multi-Agent Diabetic Complication Early-Warning Triage Panel
+          <p className="text-sm font-medium text-slate-500">
+            AI-powered multi-agent diabetic complication early-warning triage
           </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200/50">
-              4 Specialist Agents
-            </span>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200/50">
-              NHANES Dataset
-            </span>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide border border-slate-200/50">
-              Multi-Agent Synthesis
-            </span>
-            <span className="rounded-full bg-sky-50 border border-sky-100/50 px-2.5 py-0.5 text-[10px] font-bold text-sky-700 uppercase tracking-wide">
-              Diabetes / Chronic Disease
-            </span>
-          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

@@ -16,12 +16,48 @@ interface SwarmDiagnosticsTabsProps {
   benchmark?: BenchmarkSummary | null;
 }
 
-const specialistMeta: Record<string, { label: string; icon: string; themeColor: string }> = {
-  renal: { label: "Renal Specialist", icon: "🧬", themeColor: "indigo" },
-  neuropathy: { label: "Neuropathy Specialist", icon: "🧠", themeColor: "violet" },
-  retinal: { label: "Retinal Specialist", icon: "👁️", themeColor: "amber" },
-  cardiovascular: { label: "Cardiovascular Specialist", icon: "❤️", themeColor: "rose" },
+const specialistMeta: Record<string, { label: string; themeColor: string }> = {
+  renal: { label: "Renal Specialist", themeColor: "indigo" },
+  neuropathy: { label: "Neuropathy Specialist", themeColor: "violet" },
+  retinal: { label: "Retinal Specialist", themeColor: "amber" },
+  cardiovascular: { label: "Cardiovascular Specialist", themeColor: "rose" },
 };
+
+function SpecialistIcon({ type, className = "h-5 w-5" }: { type: string; className?: string }) {
+  switch (type) {
+    case "renal":
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21.75v-6.774a2.25 2.25 0 00-.659-1.591L3.659 7.955A2.25 2.25 0 013 6.364V5.318c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+        </svg>
+      );
+    case "neuropathy":
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      );
+    case "retinal":
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      );
+    case "cardiovascular":
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+        </svg>
+      );
+  }
+}
 
 const labLabels: Record<string, string> = {
   egfr: "eGFR (Kidney Function)",
@@ -58,12 +94,11 @@ export function SwarmDiagnosticsTabs({
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  // Helper to determine if a value breached a cutoff threshold
   const isCutoffBreached = (key: string, val: number, threshold: number) => {
     if (key.toLowerCase().includes("egfr")) {
-      return val < threshold; // lower is worse
+      return val < threshold;
     }
-    return val > threshold; // higher is worse
+    return val > threshold;
   };
 
   const getStatusBadge = (key: string, val: number, threshold: number) => {
@@ -82,7 +117,6 @@ export function SwarmDiagnosticsTabs({
     );
   };
 
-  // Safe threshold resolver
   const getThresholdValue = (labKey: string, thresholds: Record<string, number>) => {
     if (labKey === "egfr") return thresholds["egfr_cutoff"] ?? 84.8;
     if (labKey === "uacr_mg_g") return thresholds["uacr_cutoff"] ?? 15.5;
@@ -90,12 +124,10 @@ export function SwarmDiagnosticsTabs({
     if (labKey === "a1c_percent") return thresholds["a1c_cutoff"] ?? 6.8;
     if (labKey === "years_with_diabetes") return thresholds["years_cutoff"] ?? 10;
 
-    // search for partial match
     const prefix = labKey.split("_")[0];
     const match = Object.keys(thresholds).find((k) => k.startsWith(prefix));
     if (match) return thresholds[match];
 
-    // default fallbacks based on specifications
     if (labKey.includes("ldl")) return 100;
     if (labKey.includes("hdl")) return 40;
     if (labKey.includes("triglycerides")) return 150;
@@ -113,7 +145,6 @@ export function SwarmDiagnosticsTabs({
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Tabs Selector Bar */}
       <div className="flex border-b border-slate-200">
         {(["overview", "analysis", "logs", "benchmark"] as const).map((tab) => (
           <button
@@ -129,7 +160,6 @@ export function SwarmDiagnosticsTabs({
         ))}
       </div>
 
-      {/* Tab Panels */}
       <div className="min-h-[400px]">
         {activeTab === "overview" && (
           <div className="space-y-6 animate-fade-in">
@@ -167,7 +197,7 @@ export function SwarmDiagnosticsTabs({
             ) : (
               <div className="grid grid-cols-1 gap-6">
                 {specialists.map((spec) => {
-                  const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase(), icon: "⚙️", themeColor: "slate" };
+                  const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase(), themeColor: "slate" };
                   return (
                     <div
                       key={spec.specialist}
@@ -175,7 +205,7 @@ export function SwarmDiagnosticsTabs({
                     >
                       <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{meta.icon}</span>
+                          <SpecialistIcon type={spec.specialist} className="h-5 w-5 text-slate-600" />
                           <h4 className="font-bold text-slate-800">{meta.label}</h4>
                         </div>
                         <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${spec.flag
@@ -187,7 +217,6 @@ export function SwarmDiagnosticsTabs({
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {/* Reasoning Column */}
                         <div className="lg:col-span-6 space-y-2">
                           <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clinical Reasoning</h5>
                           <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
@@ -201,7 +230,6 @@ export function SwarmDiagnosticsTabs({
                           </div>
                         </div>
 
-                        {/* Cutoffs Table Column */}
                         <div className="lg:col-span-6 space-y-2">
                           <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Early-Warning Threshold Comparison</h5>
                           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50/20">
@@ -256,20 +284,19 @@ export function SwarmDiagnosticsTabs({
             ) : (
               <div className="space-y-4">
                 {specialists.map((spec) => {
-                  const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase(), icon: "⚙️", themeColor: "slate" };
+                  const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase(), themeColor: "slate" };
                   const isExpanded = !!expandedLogs[spec.specialist];
                   return (
                     <div
                       key={spec.specialist}
                       className="rounded-3xl border border-slate-200 bg-white overflow-hidden transition-all duration-200 hover:border-slate-300 hover:shadow-md"
                     >
-                      {/* Accordion Header */}
                       <button
                         onClick={() => toggleLog(spec.specialist)}
                         className="w-full flex items-center justify-between p-5 bg-slate-50/40 hover:bg-slate-50 border-b border-slate-100 transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-xl">{meta.icon}</span>
+                          <SpecialistIcon type={spec.specialist} className="h-5 w-5 text-slate-600" />
                           <div className="text-left">
                             <h4 className="font-bold text-slate-800">{meta.label} Code Log</h4>
                             <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mt-0.5">
@@ -300,11 +327,8 @@ export function SwarmDiagnosticsTabs({
                         </div>
                       </button>
 
-                      {/* Accordion Content */}
                       {isExpanded && (
                         <div className="p-6 space-y-6 bg-white animate-slide-down">
-
-                          {/* Execution Steps Traces */}
                           <div className="space-y-2">
                             <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Execution Steps Trace</h5>
                             <ol className="relative border-l border-slate-200 ml-2.5 space-y-4">
@@ -319,7 +343,6 @@ export function SwarmDiagnosticsTabs({
                             </ol>
                           </div>
 
-                          {/* Executed Code Block */}
                           {spec.code_used && (
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
@@ -336,7 +359,6 @@ export function SwarmDiagnosticsTabs({
                               </pre>
                             </div>
                           )}
-
                         </div>
                       )}
                     </div>
@@ -361,7 +383,6 @@ export function SwarmDiagnosticsTabs({
                   </span>
                 </div>
 
-                {/* Info Metric Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                   <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 text-center">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Duration</span>
@@ -377,13 +398,11 @@ export function SwarmDiagnosticsTabs({
                   </div>
                 </div>
 
-                {/* SVG Latency Bar Chart */}
                 <div className="space-y-4">
                   <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Wall-Clock Latency breakdown</h5>
                   <div className="space-y-3">
                     {specialists.map((spec) => {
                       const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase() };
-                      // Calc percentage of total
                       const pct = activeBenchmark.total_duration_ms > 0
                         ? Math.max(2, Math.min(100, (spec.duration_ms / activeBenchmark.total_duration_ms) * 100))
                         : 2;
@@ -403,7 +422,6 @@ export function SwarmDiagnosticsTabs({
                       );
                     })}
 
-                    {/* Synthesis Latency */}
                     {synthesis && (
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs font-semibold text-slate-600">
@@ -425,7 +443,6 @@ export function SwarmDiagnosticsTabs({
                   </div>
                 </div>
 
-                {/* Model Meta info */}
                 {llmModel && (
                   <div className="mt-6 border-t border-slate-100 pt-4 flex flex-col sm:flex-row justify-between text-xs text-slate-400 font-mono gap-1">
                     <span>Active LLM Model: {llmModel}</span>

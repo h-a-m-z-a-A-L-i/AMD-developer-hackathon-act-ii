@@ -1,29 +1,75 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface WelcomeModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+function StepIcon({ type }: { type: string }) {
+  const common = "h-5 w-5 text-slate-600";
+  switch (type) {
+    case "renal":
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21.75v-6.774a2.25 2.25 0 00-.659-1.591L3.659 7.955A2.25 2.25 0 013 6.364V5.318c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+        </svg>
+      );
+    case "neuropathy":
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      );
+    case "retinal":
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      );
+    case "cardiovascular":
+      return (
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      );
+    case "synthesis":
+      return (
+        <svg className="h-5 w-5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+const steps = [
+  { type: "renal", label: "Renal", detail: "eGFR + UACR → kidney stress" },
+  { type: "neuropathy", label: "Neuropathy", detail: "A1c + duration → nerve risk" },
+  { type: "retinal", label: "Retinal", detail: "Systolic BP + duration → eye risk" },
+  { type: "cardiovascular", label: "Cardiovascular", detail: "Lipid panel → heart risk" },
+  { type: "synthesis", label: "Synthesis", detail: "Combines all 4 → referral" },
+];
+
+// Fixed content height so slide 1 <-> slide 2 never resizes the modal.
+const CONTENT_HEIGHT = "min-h-[340px]";
+
 export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
   const [activeSlide, setActiveSlide] = useState(0);
 
-  // Reset to slide 0 when modal is opened
   useEffect(() => {
-    if (isOpen) {
-      setActiveSlide(0);
-    }
+    if (isOpen) setActiveSlide(0);
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl transition-all duration-300 md:p-8">
-        
-        {/* Close Button */}
+      <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
+
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
@@ -33,109 +79,81 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
           </svg>
         </button>
 
-        {/* Carousel Content */}
-        {activeSlide === 0 ? (
-          /* SLIDE 1: Introduction & Architecture Flex */
-          <div className="space-y-6 animate-slide-in-right">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100/50 shadow-sm">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900">DiaSentry Swarm</h2>
-                <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">AI-Powered Diabetic Complication Triage</p>
-              </div>
-            </div>
+        {/* Persistent brand header - identical on both slides, keeps the frame stable */}
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">
+            <svg className="h-5.5 w-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">DiaSentry</h2>
+            <p className="text-sm font-medium text-slate-500">AI-powered multi-agent diabetic complication early-warning triage</p>
+          </div>
+        </div>
 
-            <p className="text-base leading-relaxed text-slate-600">
-              <strong className="text-slate-800">DiaSentry Swarm</strong> runs four specialist AI agents against a patient's lab results to catch diabetic kidney, nerve, eye, and heart damage years before standard screening would flag them.
-            </p>
-
-            {/* The Story / Architecture Flex Box */}
-            <div className="rounded-2xl border border-sky-100 bg-sky-50/50 p-4 md:p-5">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-sky-800 uppercase tracking-wider mb-2">
-                <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
-                The Swarm Sandbox Architecture
-              </h3>
-              <p className="text-sm leading-relaxed text-slate-600">
-                Each specialist agent doesn't just run static checks. They evaluate inputs and dynamically write and execute their own Python analysis code in a secure backend environment against the patient's real labs (from the NHANES dataset). Finally, a Chief Synthesis Agent compiles all four specialist outputs into a single, cohesive clinical referral recommendation.
+        {/* Fixed-height sliding content */}
+        <div className={`mt-6 ${CONTENT_HEIGHT}`}>
+          {activeSlide === 0 ? (
+            <div className="animate-fade-in space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">What it does</p>
+              <p className="text-base leading-relaxed text-slate-600">
+                Four specialist agents screen a patient&apos;s real labs for early kidney, nerve, eye, and heart complications &mdash; years before they&apos;d surface in a standard screening.
               </p>
-            </div>
-          </div>
-        ) : (
-          /* SLIDE 2: Specialist Roster */
-          <div className="space-y-5 animate-slide-in-right">
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-slate-900">How It Works</h2>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5">Meet the Swarm Roster</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[380px] overflow-y-auto pr-2 scrollbar-thin">
-              {/* Renal */}
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-slate-50 hover:border-slate-200">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Renal Specialist
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  Reads <strong className="text-slate-700">eGFR + UACR</strong>. Flags kidney stress at early-warning thresholds well below standard "chronic kidney disease" diagnostics.
-                </p>
-              </div>
-
-              {/* Neuropathy */}
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-slate-50 hover:border-slate-200">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                  Neuropathy Specialist
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  Reads <strong className="text-slate-700">A1c + years with diabetes</strong>. Screens for neuropathic degradation and cumulative peripheral nerve damage risk.
-                </p>
-              </div>
-
-              {/* Retinal */}
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-slate-50 hover:border-slate-200">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  Retinal Specialist
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  Reads <strong className="text-slate-700">systolic BP + diabetes duration</strong>. Flags early signs of retinopathy and microvascular stress.
-                </p>
-              </div>
-
-              {/* Cardiovascular */}
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-all hover:bg-slate-50 hover:border-slate-200">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="h-2 w-2 rounded-full bg-rose-500" />
-                  Cardiovascular Agent
-                </h3>
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  Reads <strong className="text-slate-700">lipid panel (LDL, HDL, Triglycerides)</strong>. Flags silent cardiovascular risks that a standard HbA1c screening misses.
-                </p>
-              </div>
-
-              {/* Synthesis */}
-              <div className="col-span-1 md:col-span-2 rounded-2xl border border-sky-100 bg-sky-50/20 p-4 transition-all hover:bg-sky-50/30">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-sky-800">
-                  <span className="h-2.5 w-2.5 rounded-full bg-sky-500" />
-                  Synthesis Agent (Chief)
-                </h3>
-                <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                  The central consolidator. Compiles reports from all four specialists, resolves conflicts, and issues the high-level clinician referral recommendation.
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                <div className="flex items-center gap-2">
+                  <svg className="h-4 w-4 flex-shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-800">Real sandboxed execution</p>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  Each agent writes and executes its own Python analysis code against real NHANES labs in a secure backend sandbox &mdash; not static rules dressed up as AI. A synthesis agent then compiles all four outputs into one referral recommendation.
                 </p>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="animate-fade-in space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">How it works</p>
 
-        {/* Footer Actions */}
-        <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-5">
-          {/* Pagination Indicators */}
+              <div className="grid grid-cols-2 gap-3">
+                {steps.filter((s) => s.type !== "synthesis").map((step) => (
+                  <div
+                    key={step.type}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-4 transition-colors hover:bg-slate-50"
+                  >
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                      <StepIcon type={step.type} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{step.label}</p>
+                      <p className="mt-0.5 text-xs leading-snug text-slate-500">{step.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-center">
+                <svg className="h-4 w-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                  <StepIcon type="synthesis" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Synthesis</p>
+                  <p className="mt-0.5 text-xs leading-snug text-slate-500">Combines all 4 specialist outputs into one referral recommendation.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer: pagination + actions */}
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
           <div className="flex gap-1.5">
             <span className={`h-2 w-2 rounded-full transition-all duration-200 ${activeSlide === 0 ? "w-4 bg-emerald-600" : "bg-slate-200"}`} />
             <span className={`h-2 w-2 rounded-full transition-all duration-200 ${activeSlide === 1 ? "w-4 bg-emerald-600" : "bg-slate-200"}`} />
@@ -146,13 +164,13 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
               <>
                 <button
                   onClick={onClose}
-                  className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
                 >
                   Skip
                 </button>
                 <button
                   onClick={() => setActiveSlide(1)}
-                  className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
+                  className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
                 >
                   Next
                 </button>
@@ -161,15 +179,15 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
               <>
                 <button
                   onClick={() => setActiveSlide(0)}
-                  className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700"
                 >
                   Back
                 </button>
                 <button
                   onClick={onClose}
-                  className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors shadow-sm"
+                  className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500"
                 >
-                  Get Started
+                  Get started
                 </button>
               </>
             )}
