@@ -41,6 +41,7 @@ export default function DashboardPage() {
 
   // Onboarding welcome modal state
   const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
 
   // Real-time terminal logs state
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
@@ -82,10 +83,11 @@ export default function DashboardPage() {
     }
 
     // Check if user has seen welcome modal
-    const onboarded = localStorage.getItem("diasentry_onboarded");
+    const onboarded = localStorage.getItem("glycoswarm_onboarded");
     if (onboarded !== "true") {
       setIsWelcomeOpen(true);
     }
+    setMounted(true);
 
     loadPatients();
     loadStatus();
@@ -225,8 +227,16 @@ export default function DashboardPage() {
 
   const handleCloseWelcome = () => {
     setIsWelcomeOpen(false);
-    localStorage.setItem("diasentry_onboarded", "true");
+    localStorage.setItem("glycoswarm_onboarded", "true");
   };
+
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <span className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-6 bg-slate-50 p-4 font-sans antialiased sm:p-6 lg:p-12">
@@ -235,71 +245,91 @@ export default function DashboardPage() {
       <WelcomeModal isOpen={isWelcomeOpen} onClose={handleCloseWelcome} />
 
       {/* Sticky Header */}
-      <header className="sticky top-0 z-30 -mx-4 flex flex-col gap-5 border-b border-slate-200 bg-slate-50/90 px-4 pb-6 pt-4 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-12 lg:px-12 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-600/20">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
+      <header className="sticky top-0 z-30 -mx-4 border-b border-slate-200 mt-0 bg-slate-50/90 px-4 py-2 backdrop-blur-md sm:-mx-6 sm:px-6 sm:py-2.5 lg:-mx-12 lg:px-12">
+        {/* Single flex row on lg+; stacked on mobile/tablet */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+
+          {/* Brand */}
+          <div className="flex items-center justify-between w-full lg:w-auto">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-11 w-11 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center overflow-hidden">
+                <img src="/glycoswarmlogo.png" alt="GlycoSwarm AI" className="h-full w-full object-contain" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-none">GlycoSwarm AI</h1>
+                <p className="hidden sm:block text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
+                  AI-powered multi-agent diabetic complication early-warning triage
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-              DiaSentry
-            </h1>
-          </div>
-          <p className="text-sm font-medium text-slate-500">
-            AI-powered multi-agent diabetic complication early-warning triage
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Info Modal Trigger Button */}
-          <button
-            onClick={() => setIsWelcomeOpen(true)}
-            className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shadow-sm"
-            title="System Guide Overview"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-
-          {/* Record Selector and Control Panel */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:px-4 sm:py-2.5 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
-            <label htmlFor="patient-select" className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Select Record:
-            </label>
-            {isPatientsLoading ? (
-              <span className="animate-pulse text-sm text-slate-400 font-medium">Index mapping...</span>
-            ) : (
-              <select
-                id="patient-select"
-                value={selectedPatientId}
-                onChange={(e) => setSelectedPatientId(e.target.value)}
-                disabled={isPipelineRunning}
-                className="cursor-pointer bg-transparent text-sm font-mono font-semibold text-slate-900 focus:outline-none disabled:opacity-40 w-full sm:w-auto"
-              >
-                {patients.map((p) => (
-                  <option key={p.patient_id} value={p.patient_id}>
-                    {p.patient_id} (Age: {p.age}, A1c: {p.a1c_percent}%)
-                  </option>
-                ))}
-              </select>
-            )}
+            
+            {/* Mobile/Tablet Info button */}
             <button
-              onClick={() => triggerPipelineAnalysis(selectedPatientId)}
-              disabled={isPipelineRunning || !selectedPatientId}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 w-full sm:w-auto shadow-sm"
+              onClick={() => setIsWelcomeOpen(true)}
+              className="lg:hidden rounded-xl border border-slate-200 bg-white p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shadow-sm flex-shrink-0"
+              title="System Guide Overview"
             >
-              {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </button>
           </div>
+
+          {/* Controls row: selector pill + desktop info button */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
+            {/* Patient selector + Analyze button pill */}
+            <div className="flex flex-1 lg:flex-none flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 sm:px-4 sm:py-2.5 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
+              <label htmlFor="patient-select" className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-slate-400 px-1 sm:px-0">
+                Select Record:
+              </label>
+              {isPatientsLoading ? (
+                <span className="animate-pulse text-sm text-slate-400 font-medium flex-1 px-1">Index mapping...</span>
+              ) : (
+                <select
+                  id="patient-select"
+                  value={selectedPatientId}
+                  onChange={(e) => setSelectedPatientId(e.target.value)}
+                  disabled={isPipelineRunning}
+                  className="cursor-pointer bg-transparent text-sm font-mono font-semibold text-slate-900 focus:outline-none disabled:opacity-40 flex-1 min-w-0 px-1"
+                >
+                  {patients.map((p) => (
+                    <option key={p.patient_id} value={p.patient_id}>
+                      {p.patient_id} (Age: {p.age}, A1c: {p.a1c_percent}%)
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={() => triggerPipelineAnalysis(selectedPatientId)}
+                disabled={isPipelineRunning || !selectedPatientId}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 shadow-sm w-full sm:w-auto flex-shrink-0"
+              >
+                {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
+              </button>
+            </div>
+
+            {/* Desktop Info button */}
+            <button
+              onClick={() => setIsWelcomeOpen(true)}
+              className="hidden lg:block rounded-xl border border-slate-200 bg-white p-2.5 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors shadow-sm flex-shrink-0"
+              title="System Guide Overview"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+
         </div>
       </header>
 
+
       {errorMessage && errorMessage.trim() && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-mono text-sm text-rose-600 shadow-sm">
-          ⚠️ [PIPELINE EXCEPTION]: {errorMessage}
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 font-mono text-sm text-rose-600 shadow-sm flex items-start gap-2">
+          <svg className="h-4 w-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>[PIPELINE EXCEPTION]: {errorMessage}</span>
         </div>
       )}
 

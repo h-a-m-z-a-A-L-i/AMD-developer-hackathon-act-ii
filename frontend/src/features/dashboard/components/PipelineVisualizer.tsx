@@ -1,6 +1,35 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { SpecialistResult, SynthesisReport } from "@/types";
+
+function TypingText({ text = "", speed = 120, delay = 1200 }: { text: string; speed?: number; delay?: number }) {
+  const [displayedText, setDisplayedText] = useState("");
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (index < text.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText((prev) => prev + text.charAt(index));
+        setIndex((prev) => prev + 1);
+      }, speed);
+      return () => clearTimeout(timeout);
+    } else {
+      const timeout = setTimeout(() => {
+        setDisplayedText("");
+        setIndex(0);
+      }, delay);
+      return () => clearTimeout(timeout);
+    }
+  }, [index, text, speed, delay]);
+
+  return (
+    <span className="font-mono inline-block w-[170px] text-left">
+      {displayedText}
+      <span className="animate-cursor-blink text-sky-500 font-bold ml-[1px]">|</span>
+    </span>
+  );
+}
 
 interface PipelineVisualizerProps {
   specialists: SpecialistResult[];
@@ -57,8 +86,8 @@ export function PipelineVisualizer({
           Status:{" "}
           {isLoading ? (
             <span className="flex items-center gap-1.5 text-sky-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-              Streaming Node Data...
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
+              <TypingText text="Streaming Node Data..." />
             </span>
           ) : pipelineFinished ? (
             <span className="text-emerald-600">Pipeline Complete</span>
@@ -96,7 +125,8 @@ export function PipelineVisualizer({
 
         {/* Node 2: 4 Specialist Agents (Parallel Panel) */}
         <div className="flex flex-col items-center z-10 w-full md:w-auto">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3 flex flex-wrap md:flex-nowrap gap-3 items-center justify-center shadow-inner">
+          {/* grid-cols-2 on narrow mobile → flex row on md+ */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-3 grid grid-cols-2 md:flex md:flex-nowrap gap-3 items-center justify-center shadow-inner w-full md:w-auto">
             {specialistKeys.map((key) => {
               const spec = completedSpecialists[key];
               const isDone = !!spec;
@@ -105,14 +135,24 @@ export function PipelineVisualizer({
               // Color selection
               const colorClass = getRiskColor(spec);
               const isActive = isLoading && !isDone;
+              const isFlagged = isDone && spec.flag;
 
               return (
-                <div key={key} className={`flex flex-col items-center gap-1 p-2 rounded-xl border bg-white min-w-[70px] transition-all duration-300 ${
+                <div key={key} className={`flex flex-col items-center gap-1 p-2 rounded-xl border bg-white w-full min-w-[64px] transition-all duration-300 ${
                   isDone ? "border-slate-200" : isActive ? "border-sky-300 shadow-[0_0_10px_rgba(56,189,248,0.15)]" : "border-slate-100 opacity-60"
                 }`}>
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-300 text-xs font-bold ${colorClass}`}>
+                  <div className={isFlagged
+                    ? "flex h-8 w-8 items-center justify-center transition-all duration-300"
+                    : `flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-300 text-xs font-bold ${colorClass}`
+                  }>
                     {isDone ? (
-                      spec.flag ? "⚠️" : `${Math.round(spec.risk_score * 100)}%`
+                      spec.flag ? (
+                        <svg className="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      ) : (
+                        `${Math.round(spec.risk_score * 100)}%`
+                      )
                     ) : isActive ? (
                       <span className="h-4 w-4 animate-spin rounded-full border border-sky-600 border-t-transparent" />
                     ) : (
@@ -190,6 +230,13 @@ export function PipelineVisualizer({
         }
         .animate-shimmer-connector {
           animation: shimmer-connector 1.5s infinite linear;
+        }
+        @keyframes cursor-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .animate-cursor-blink {
+          animation: cursor-blink 0.8s infinite step-start;
         }
       `}} />
     </div>

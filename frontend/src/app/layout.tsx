@@ -9,7 +9,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Diabetic Complication Swarm",
+  title: "GlycoSwarm AI - Diabetic Complication Swarm",
   description: "Multi-agent clinical dashboard for diabetic complication risk triage",
 };
 

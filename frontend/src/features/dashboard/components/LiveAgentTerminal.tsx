@@ -71,7 +71,7 @@ export function LiveAgentTerminal({
             <span className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
           </div>
-          <span className="select-none font-sans text-xs text-white/40">diasentry-terminal ~ stream</span>
+          <span className="select-none font-sans text-xs text-white/40">glycoswarm-terminal ~ stream</span>
           <span className="w-10" />
         </div>
 

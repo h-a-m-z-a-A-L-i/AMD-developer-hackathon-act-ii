@@ -105,8 +105,11 @@ export function SwarmDiagnosticsTabs({
     const breached = isCutoffBreached(key, val, threshold);
     if (breached) {
       return (
-        <span className="rounded-full bg-rose-50 border border-rose-100/50 px-2.5 py-0.5 text-xs font-semibold text-rose-600">
-          ⚠️ Early Flag
+        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-100/50 px-2.5 py-0.5 text-xs font-semibold text-rose-600">
+          <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Early Flag
         </span>
       );
     }
@@ -145,12 +148,13 @@ export function SwarmDiagnosticsTabs({
   return (
     <div className="flex flex-col gap-6">
 
-      <div className="flex border-b border-slate-200">
+      {/* Horizontally scrollable tab row — no wrapping on any screen size */}
+      <div className="-mx-px flex overflow-x-auto border-b border-slate-200 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
         {(["overview", "analysis", "logs", "benchmark"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 capitalize transition-all duration-200 ${activeTab === tab
+            className={`flex-shrink-0 px-3 xs:px-5 py-3 text-sm font-semibold border-b-2 capitalize transition-all duration-200 whitespace-nowrap ${activeTab === tab
                 ? "border-emerald-600 text-emerald-700 font-bold"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
               }`}
