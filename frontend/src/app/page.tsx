@@ -8,7 +8,11 @@ import { ReportExport } from "@/features/dashboard/components/ReportExport";
 import { WelcomeModal } from "@/features/dashboard/components/WelcomeModal";
 import { SwarmDiagnosticsTabs } from "@/features/dashboard/components/SwarmDiagnosticsTabs";
 import { CustomPatientModal } from "@/features/dashboard/components/CustomPatientModal";
-import { generateBrief } from "@/lib/generateBrief";
+import { ToastStack, ToastItem } from "@/features/dashboard/components/ToastStack";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { Logo } from "@/components/theme/Logo";
+import { RecordSelect } from "@/features/dashboard/components/RecordSelect";
+import { fetchBrief } from "@/lib/generateBrief";
 import type {
   PatientDropdownItem,
   Demographics,
@@ -24,6 +28,13 @@ const specialistLabels: Record<string, string> = {
   renal: "RENAL_SPECIALIST",
   neuropathy: "NEUROPATHY_SPECIALIST",
   cardiovascular: "CARDIOVASCULAR_SPECIALIST",
+};
+
+const specialistFriendlyNames: Record<string, string> = {
+  retinal: "Retinal",
+  renal: "Renal",
+  neuropathy: "Neuropathy",
+  cardiovascular: "Cardiovascular",
 };
 
 export default function DashboardPage() {
@@ -53,8 +64,16 @@ export default function DashboardPage() {
   // Real-time terminal logs state
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
 
+  // Toast notifications for flagged specialist results
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const dismissToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
   // Auto-generated clinical brief state
   const [clinicalBrief, setClinicalBrief] = useState<string>("");
+  const [isBriefLoading, setIsBriefLoading] = useState<boolean>(false);
 
   // Tracks the active custom patient ID separately so a custom run never
   // overwrites the dataset dropdown’s selectedPatientId. Cleared when the
@@ -101,11 +120,8 @@ export default function DashboardPage() {
       }
     }
 
-    // Check if user has seen welcome modal
-    const onboarded = localStorage.getItem("glycoswarm_onboarded");
-    if (onboarded !== "true") {
-      setIsWelcomeOpen(true);
-    }
+    // Always show the welcome/onboarding modal on load
+    setIsWelcomeOpen(true);
     setMounted(true);
 
     loadPatients();
@@ -146,6 +162,8 @@ export default function DashboardPage() {
     setIsPipelineRunning(true);
     setTerminalLogs([]);
     setClinicalBrief("");
+    setIsBriefLoading(false);
+    setToasts([]);
     if (!customData) {
       // Switching to a dataset patient — clear any lingering custom session
       setCustomPatientId(null);
@@ -210,7 +228,7 @@ export default function DashboardPage() {
       if (event.stage === "pipeline_start") {
         const providerLabel = event.provider
           ? `LLM sandbox (${event.provider})`
-          : "deterministic rule-based fallback - LLM offline";
+          : "LLM offline - no fallback, analysis will be reported unavailable";
         setTerminalLogs((prev) => [
           ...prev,
           `> [SYSTEM] Loading patient ${event.patient_id} ${customData ? '(Custom Input)' : 'from NHANES 2017-2018 dataset'}...`,
@@ -243,15 +261,25 @@ export default function DashboardPage() {
         setTerminalLogs((prev) => [
           ...prev,
           `> [SYSTEM] Swarm pipeline execution finished in ${event.total_duration_ms} ms.`,
-          `> [SYSTEM] Provider mode: ${event.provider || "Rule-based Fallback (offline)"}.`,
+          `> [SYSTEM] Provider mode: ${event.provider || "LLM offline (no fallback)"}.`,
         ]);
 
         es.close();
         setIsPipelineRunning(false);
 
-        // Generate the brief synchronously in the browser — instant, no network call
+        // Fetch the Discovery Brief from the real backend report agent
+        // (LLM-generated, honest "unavailable" on failure — no client-side
+        // template fallback).
         if (localPatientId && localDemographics && localSynthesis && localSpecialists.length > 0) {
-          setClinicalBrief(generateBrief(localPatientId, localDemographics, localLabs as any, localSpecialists, localSynthesis));
+          setIsBriefLoading(true);
+          fetchBrief(localPatientId, localDemographics, localLabs, localSpecialists, localSynthesis)
+            .then((brief) => setClinicalBrief(brief))
+            .catch((err) => {
+              setClinicalBrief(
+                `Discovery Brief unavailable for patient ${localPatientId}: ${err.message}. No report was generated - this is not a placeholder or partial brief.`
+              );
+            })
+            .finally(() => setIsBriefLoading(false));
         }
         return;
       }
@@ -306,12 +334,27 @@ export default function DashboardPage() {
         }
 
         const label = specialistLabels[result.specialist] || result.specialist.toUpperCase();
-        const flagMarker = result.flag ? "⚠️ FLAGGED" : "clear";
+        const isUnavailable = result.available === false || result.risk_score === null;
+        const flagMarker = isUnavailable ? "N/A" : result.flag ? "⚠️ FLAGGED" : "clear";
+        const riskDisplay = isUnavailable ? "N/A" : result.risk_score.toFixed(2);
         setTerminalLogs((prev) => [
           ...prev,
-          `> [${label}] risk=${result.risk_score.toFixed(2)} [${flagMarker}]`,
+          `> [${label}] risk=${riskDisplay} [${flagMarker}]`,
           `> [${label}] -> ${result.reasoning}`
         ]);
+
+        // Surface a toast the moment a specialist comes back flagged
+        if (!isUnavailable && result.flag) {
+          setToasts((prev) => [
+            ...prev,
+            {
+              id: `${result.specialist}-${Date.now()}`,
+              specialist: result.specialist,
+              label: specialistFriendlyNames[result.specialist] || result.specialist,
+              riskScore: result.risk_score,
+            },
+          ]);
+        }
       }
     };
 
@@ -372,22 +415,24 @@ export default function DashboardPage() {
 
   const handleCloseWelcome = () => {
     setIsWelcomeOpen(false);
-    localStorage.setItem("glycoswarm_onboarded", "true");
   };
 
   if (!mounted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-[#0b1120]">
         <span className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-6 bg-slate-50 p-4 font-sans antialiased sm:p-6 lg:p-12">
+    <main className="mx-auto flex min-h-screen max-w-[1600px] flex-col gap-6 bg-slate-50 p-4 font-sans antialiased sm:p-6 lg:p-12 dark:bg-[#0b1120]">
 
       {/* Onboarding Welcome Modal */}
       <WelcomeModal isOpen={isWelcomeOpen} onClose={handleCloseWelcome} />
+
+      {/* Flagged-result toast notifications */}
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       {/* Custom Patient Input Form Modal */}
       <CustomPatientModal
@@ -407,8 +452,8 @@ export default function DashboardPage() {
           {/* Brand */}
           <div className="flex items-center justify-between w-full lg:w-auto">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-11 w-11 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center overflow-hidden">
-                <img src="/glycoswarmlogo.png" alt="GlycoSwarm AI" className="h-full w-full object-contain" />
+              <div className="flex h-11 w-11 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-slate-200/60 dark:bg-slate-800 dark:ring-slate-700/60">
+                <Logo className="h-full w-full object-contain" />
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-none">GlycoSwarm AI</h1>
@@ -434,30 +479,23 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
             {/* Patient selector + Analyze button pill */}
             <div className="flex flex-1 lg:flex-none flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 rounded-full border border-slate-200 bg-white p-1.5 sm:pl-5 sm:pr-1.5 sm:py-1.5 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
-              <label htmlFor="patient-select" className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-slate-400 px-1 sm:px-0">
+              <label className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-slate-400 px-1 sm:px-0">
                 Select Record:
               </label>
               {isPatientsLoading ? (
                 <span className="animate-pulse text-sm text-slate-400 font-medium flex-1 px-1">Index mapping...</span>
               ) : (
-                <select
-                  id="patient-select"
+                <RecordSelect
+                  patients={patients}
                   value={selectedPatientId}
-                  onChange={(e) => setSelectedPatientId(e.target.value)}
+                  onChange={setSelectedPatientId}
                   disabled={isPipelineRunning}
-                  className="cursor-pointer bg-transparent text-sm font-mono font-semibold text-slate-900 focus:outline-none disabled:opacity-40 flex-1 min-w-0 px-1"
-                >
-                  {patients.map((p) => (
-                    <option key={p.patient_id} value={p.patient_id}>
-                      {p.patient_id} (Age: {p.age}, A1c: {p.a1c_percent}%)
-                    </option>
-                  ))}
-                </select>
+                />
               )}
               <button
                 onClick={() => triggerPipelineAnalysis(selectedPatientId)}
                 disabled={isPipelineRunning || !selectedPatientId}
-                className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 shadow-sm w-full sm:w-auto flex-shrink-0"
+                className="flex h-11 w-full flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 shadow-sm sm:w-auto"
               >
                 {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
               </button>
@@ -467,13 +505,15 @@ export default function DashboardPage() {
             <button
               onClick={() => setIsCustomModalOpen(true)}
               disabled={isPipelineRunning}
-              className="rounded-full border border-slate-200 bg-white px-4 py-3 sm:px-5 sm:py-4 text-slate-600 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 flex items-center justify-center gap-1.5 flex-shrink-0"
+              className="group flex h-11 flex-shrink-0 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/60 pl-2 pr-5 text-emerald-700 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-40"
               title="Add Custom Patient Labs"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="hidden sm:inline text-sm font-semibold">Custom Patient</span>
+              <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white transition-colors group-hover:bg-emerald-500">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                </svg>
+              </span>
+              <span className="text-sm font-semibold">Custom Patient</span>
             </button>
 
             {/* Desktop Info button */}
@@ -486,6 +526,9 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
+
+            {/* Dark mode toggle */}
+            <ThemeToggle />
           </div>
 
         </div>
@@ -512,7 +555,7 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-12">
 
         {/* Left Column: Diagnostics Tabs Panels */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
+        <div className="lg:col-span-9 flex flex-col gap-6">
           <SwarmDiagnosticsTabs
             specialists={specialists}
             synthesis={synthesis}
@@ -525,7 +568,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Column: Console Output & Lab Panels */}
-        <div className="lg:col-span-4 flex flex-col gap-6 lg:pt-[70px]">
+        <div className="lg:col-span-3 flex flex-col gap-6 lg:pt-[70px]">
           <LabsPanel labs={labs} isLoading={isPipelineRunning} />
           <LiveAgentTerminal
             terminalLogs={terminalLogs}
@@ -544,8 +587,20 @@ export default function DashboardPage() {
             specialists={specialists}
             synthesis={synthesis}
             clinicalBrief={clinicalBrief}
-            isBriefLoading={false}
+            isBriefLoading={isBriefLoading}
           />
+        </div>
+
+        {/* Disclaimer */}
+        <div className="lg:col-span-12">
+          <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
+            <svg className="h-4 w-4 flex-shrink-0 mt-0.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p>
+              <span className="font-semibold">This tool assumes an existing diabetes diagnosis.</span> It screens for early kidney, nerve, eye, and heart <em>complications</em> in patients who already have diabetes. It does not diagnose diabetes itself, and it is a demo prototype, not a clinical device.
+            </p>
+          </div>
         </div>
       </section>
     </main>

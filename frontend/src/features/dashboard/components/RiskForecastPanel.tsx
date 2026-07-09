@@ -7,23 +7,24 @@ const SPECIALIST_META: Record<string, { label: string; subtitle: string }> = {
   cardiovascular: { label: "Cardiovascular", subtitle: "" },
 };
 
-function riskTier(score: number, flag: boolean) {
+function riskTier(score: number | null, flag: boolean | null) {
+  if (score === null) return { level: "Unavailable", ring: "stroke-slate-300", text: "text-slate-400" };
   if (flag || score >= 0.7) return { level: "Elevated", ring: "stroke-rose-500", text: "text-rose-600" };
   if (score >= 0.4) return { level: "Moderate", ring: "stroke-amber-500", text: "text-amber-600" };
   return { level: "Low", ring: "stroke-emerald-500", text: "text-emerald-600" };
 }
 
-function Gauge({ score, ringClass }: { score: number; ringClass: string }) {
+function Gauge({ score, ringClass }: { score: number | null; ringClass: string }) {
   const r = 26;
   const circumference = 2 * Math.PI * r;
-  const dash = Math.max(0, Math.min(1, score)) * circumference;
+  const dash = score === null ? 0 : Math.max(0, Math.min(1, score)) * circumference;
   return (
     <svg width={64} height={64} viewBox="0 0 64 64" className="flex-shrink-0">
       <circle cx={32} cy={32} r={r} fill="none" stroke="#e2e8f0" strokeWidth={6} />
       <circle cx={32} cy={32} r={r} fill="none" strokeWidth={6} strokeLinecap="round"
         strokeDasharray={`${dash} ${circumference}`} transform="rotate(-90 32 32)" className={ringClass} />
-      <text x={32} y={32} dy="0.35em" textAnchor="middle" fontSize={16} fontWeight={600} fill="#0f172a">
-        {Math.round(score * 100)}%
+      <text x={32} y={32} dy="0.35em" textAnchor="middle" fontSize={score === null ? 11 : 16} fontWeight={600} fill="#0f172a">
+        {score === null ? "N/A" : `${Math.round(score * 100)}%`}
       </text>
     </svg>
   );

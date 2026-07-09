@@ -1,7 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { SpecialistResult, SynthesisReport } from "@/types";
+
+// three.js/WebGL can't run server-side, and the libs are sizeable, so this
+// is code-split out of the initial dashboard bundle and only ever mounted
+// once we're past the loading/empty-state branches below.
+const OrganRiskMap3D = dynamic(() => import("./OrganRiskMap3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-sky-500/30 border-t-sky-500" />
+    </div>
+  ),
+});
 
 interface OrganRiskMapProps {
   specialists: SpecialistResult[];
@@ -18,6 +31,16 @@ const specialistLabels: Record<string, string> = {
 
 export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }: OrganRiskMapProps) {
   const [hoveredSpec, setHoveredSpec] = useState<string | null>(null);
+  const [selectedSpec, setSelectedSpec] = useState<string | null>(null);
+
+  // Hover always wins in the moment; a click "pins" the highlight so it
+  // survives the mouse leaving (handy on touch devices, or to compare a
+  // card against the body without needing to keep the cursor still).
+  const activeSpec = hoveredSpec ?? selectedSpec;
+
+  const toggleSelected = (key: string) => {
+    setSelectedSpec((prev) => (prev === key ? null : key));
+  };
 
   if (isLoading) {
     return (
@@ -42,27 +65,40 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
     );
   }
 
-  // Find highest risk factor
-  const highestRisk = specialists.reduce((current, item) => {
-    return item.risk_score > current.risk_score ? item : current;
-  }, specialists[0] ?? { specialist: "System", risk_score: 0, flag: false, reasoning: "" });
+  // Find highest risk factor among AVAILABLE specialists only — an
+  // unavailable specialist (null risk_score) never counts as "highest".
+  const availableForRanking = specialists.filter((s) => s.available && s.risk_score !== null);
+  const highestRisk = availableForRanking.reduce((current, item) => {
+    return (item.risk_score as number) > (current.risk_score as number) ? item : current;
+  }, availableForRanking[0] ?? null);
 
-  const getRiskColorClass = (score: number, flag: boolean) => {
-    if (flag || score >= 0.7) return "text-red-700 border-red-200 bg-red-50/60 hover:bg-red-50 hover:border-red-300";
+  // Color is driven purely by the numeric risk score, not the specialist's
+  // boolean "flag" — a flag can trip on a clinical threshold even when the
+  // underlying risk_score only lands in the moderate band, and forcing that
+  // straight to red made the map read as only ever green/red.
+  //
+  // The status TEXT used to read the model's own "flag" boolean directly,
+  // which caused it to visibly disagree with the score/color (e.g. a 0%
+  // risk_score still showing "Anomaly Flagged"), since flag and risk_score
+  // are two independently-authored values from the same LLM call and a
+  // small model doesn't always keep them in sync. Fixed by deriving the
+  // status text from the exact same numeric bands as the color, so the two
+  // can never disagree - and that gives us the missing amber-tier label
+  // ("Elevated - Monitor") for free instead of collapsing to a binary
+  // Anomaly/Within Boundary choice.
+  const getSeverityLabel = (available: boolean, score: number | null) => {
+    if (!available || score === null) return "Unavailable";
+    if (score >= 0.7) return "Anomaly Flagged";
+    if (score >= 0.4) return "Elevated - Monitor";
+    return "Within Boundary";
+  };
+
+  const getRiskColorClass = (score: number | null) => {
+    if (score === null) return "text-slate-500 border-slate-200 bg-slate-50/60";
+    if (score >= 0.7) return "text-red-700 border-red-200 bg-red-50/60 hover:bg-red-50 hover:border-red-300";
     if (score >= 0.4) return "text-amber-700 border-amber-200 bg-amber-50/60 hover:bg-amber-50 hover:border-amber-300";
     return "text-emerald-700 border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50 hover:border-emerald-300";
   };
-
-  const getHotspotColor = (score: number, flag: boolean) => {
-    if (flag || score >= 0.7) return "#ef4444"; // Red
-    if (score >= 0.4) return "#f59e0b"; // Amber
-    return "#10b981"; // Emerald
-  };
-
-  const specMap = specialists.reduce((acc, item) => {
-    acc[item.specialist] = item;
-    return acc;
-  }, {} as Record<string, SpecialistResult>);
 
   return (
     <div className="flex h-full flex-col gap-4 font-sans text-slate-800">
@@ -76,144 +112,38 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
 
       <div className="flex flex-col md:flex-row gap-5 flex-1 items-stretch">
         
-        {/* SVG Silhouette Panel (Left side) - Clean minimalist style */}
-        <div className="flex-1 flex items-center justify-center bg-slate-50/80 border border-slate-200/60 rounded-3xl p-4 min-h-[340px] relative overflow-hidden select-none">
-          {/* Dotted Grid Pattern Background */}
-          <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:14px_14px]" />
+        {/* SVG Silhouette Panel (Left side) - Clean minimalist style.
+            Uses its own dedicated bg/border (rather than the shared
+            bg-slate-50/80 utility that globals.css re-themes for dark
+            mode) because that shared dark override lands almost the
+            exact same navy as the parent glass-card, so the panel was
+            invisible against its own container in dark mode. */}
+        <div className="flex-1 flex items-center justify-center bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 rounded-3xl p-4 min-h-[340px] relative overflow-hidden select-none">
+          {/* Dotted Grid Pattern Background — separate light/dark layers
+              since dark dots on a dark panel are invisible. */}
+          <div className="pointer-events-none absolute inset-0 opacity-[0.03] dark:hidden bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:14px_14px]" />
+          <div className="pointer-events-none absolute inset-0 hidden dark:block opacity-[0.06] bg-[linear-gradient(to_right,#94a3b8_1px,transparent_1px),linear-gradient(to_bottom,#94a3b8_1px,transparent_1px)] bg-[size:14px_14px]" />
           
-          {/* Static SVG container */}
-          <div 
-            className="w-full h-full max-w-[240px] max-h-[310px] flex items-center justify-center transition-transform duration-700 ease-out"
-          >
-            <svg className="w-full h-full" viewBox="0 0 200 280" fill="none">
-              <defs>
-                {/* Premium gradient fill for the body */}
-                <linearGradient id="bodyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.15" />
-                  <stop offset="50%" stopColor="#6366f1" stopOpacity="0.10" />
-                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.15" />
-                </linearGradient>
-              </defs>
-
-              {/* Minimal base scanning ring at the feet */}
-              <ellipse 
-                cx="100" 
-                cy="260" 
-                rx="58" 
-                ry="9" 
-                fill="none" 
-                stroke="#cbd5e1" 
-                strokeWidth="1" 
-                strokeDasharray="4,4" 
-              />
-
-              {/* Symmetric high-fidelity human outline */}
-              <path 
-                d="
-                  M 100,22 
-                  C 107,22 112,26 112,33 
-                  C 112,39 108,44 104,47 
-                  L 104,52 
-                  C 111,53 121,52 127,56 
-                  C 134,60 139,67 143,74 
-                  C 147,83 151,98 153,110 
-                  C 155,117 156,124 153,128 
-                  C 150,132 144,131 141,126 
-                  L 138,116 
-                  L 135,102 
-                  L 133,160 
-                  C 133,168 129,176 123,180 
-                  L 121,245 
-                  C 120,249 116,252 112,252 
-                  C 107,252 103,245 103,232 
-                  L 101,202 
-                  L 99,202 
-                  L 97,232 
-                  C 97,245 93,252 88,252 
-                  C 84,252 80,249 79,245 
-                  L 77,180 
-                  C 71,176 67,168 67,160 
-                  L 65,102 
-                  L 62,116 
-                  L 59,126 
-                  C 56,131 50,132 47,128 
-                  C 44,124 45,117 47,110 
-                  C 49,98 53,83 57,74 
-                  C 61,67 66,60 73,56 
-                  C 79,52 89,53 96,52 
-                  L 96,47 
-                  C 92,44 88,39 88,33 
-                  C 88,26 93,22 100,22 
-                  Z" 
-                fill="url(#bodyGradient)" 
-                stroke="#64748b" 
-                strokeWidth="1.2" 
-                strokeOpacity="0.4"
-                className="transition-all duration-300"
-              />
-
-              {/* Diagnostic Hotspots */}
-              
-              {/* Eyes (Retinal) */}
-              {specMap["retinal"] && (
-                <g 
-                  className="cursor-pointer transition-opacity duration-300"
-                  onMouseEnter={() => setHoveredSpec("retinal")}
-                  onMouseLeave={() => setHoveredSpec(null)}
-                >
-                  <circle cx="95" cy="43" r="3.5" fill={getHotspotColor(specMap["retinal"].risk_score, specMap["retinal"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                  <circle cx="105" cy="43" r="3.5" fill={getHotspotColor(specMap["retinal"].risk_score, specMap["retinal"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                </g>
-              )}
-
-              {/* Heart (Cardiovascular) */}
-              {specMap["cardiovascular"] && (
-                <g 
-                  className="cursor-pointer transition-opacity duration-300"
-                  onMouseEnter={() => setHoveredSpec("cardiovascular")}
-                  onMouseLeave={() => setHoveredSpec(null)}
-                >
-                  <circle cx="94" cy="106" r="5" fill={getHotspotColor(specMap["cardiovascular"].risk_score, specMap["cardiovascular"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                </g>
-              )}
-
-              {/* Kidneys (Renal) */}
-              {specMap["renal"] && (
-                <g 
-                  className="cursor-pointer transition-opacity duration-300"
-                  onMouseEnter={() => setHoveredSpec("renal")}
-                  onMouseLeave={() => setHoveredSpec(null)}
-                >
-                  <circle cx="92" cy="138" r="4.5" fill={getHotspotColor(specMap["renal"].risk_score, specMap["renal"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                  <circle cx="108" cy="138" r="4.5" fill={getHotspotColor(specMap["renal"].risk_score, specMap["renal"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                </g>
-              )}
-
-              {/* Nerves (Neuropathy) - Hands & Feet */}
-              {specMap["neuropathy"] && (
-                <g 
-                  className="cursor-pointer"
-                  onMouseEnter={() => setHoveredSpec("neuropathy")}
-                  onMouseLeave={() => setHoveredSpec(null)}
-                >
-                  {/* Feet */}
-                  <circle cx="88" cy="245" r="4.5" fill={getHotspotColor(specMap["neuropathy"].risk_score, specMap["neuropathy"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                  <circle cx="112" cy="245" r="4.5" fill={getHotspotColor(specMap["neuropathy"].risk_score, specMap["neuropathy"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                  
-                  {/* Hands */}
-                  <circle cx="48" cy="124" r="4.5" fill={getHotspotColor(specMap["neuropathy"].risk_score, specMap["neuropathy"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                  <circle cx="152" cy="124" r="4.5" fill={getHotspotColor(specMap["neuropathy"].risk_score, specMap["neuropathy"].flag)} stroke="#ffffff" strokeWidth="0.5" />
-                </g>
-              )}
-            </svg>
+          {/* Interactive 3D humanoid — code-split via next/dynamic above
+              since three.js can't run server-side. Preserves the exact
+              same bidirectional highlight state (activeSpec) the old SVG
+              hotspots used. */}
+          <div className="w-full h-full max-w-[260px] max-h-[320px]">
+            <OrganRiskMap3D
+              specialists={specialists}
+              activeSpec={activeSpec}
+              onHotspotHover={setHoveredSpec}
+              onHotspotClick={toggleSelected}
+            />
           </div>
         </div>
 
         {/* Right side Detail List */}
         <div className="flex-[1.5] flex flex-col gap-3">
           {/* Executive Summary Compiling */}
-          {synthesis && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+          {synthesis && synthesis.available && highestRisk && (
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm">
+              <div className="absolute inset-y-0 left-0 w-[3px] bg-rose-400" />
               <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-slate-400">
                 Highest Risk Trajectory
               </p>
@@ -222,7 +152,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                   {specialistLabels[highestRisk.specialist] ?? highestRisk.specialist}
                 </p>
                 <span className="text-xs font-mono bg-slate-100 px-2.5 py-1 rounded text-slate-800 font-semibold border border-slate-200">
-                  Score: {(highestRisk.risk_score * 100).toFixed(0)}%
+                  Score: {((highestRisk.risk_score as number) * 100).toFixed(0)}%
                 </span>
               </div>
               <p className="mt-2.5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-2">
@@ -230,35 +160,71 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
               </p>
             </div>
           )}
+          {synthesis && !synthesis.available && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
+              <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-slate-400">
+                Synthesis Unavailable
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{synthesis.synthesis_error}</p>
+            </div>
+          )}
 
           {/* Specialist Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
             {specialists.map((finding) => {
-              const isHovered = hoveredSpec === finding.specialist;
+              const isActive = activeSpec === finding.specialist;
+              const isTopRisk = !!highestRisk && finding.specialist === highestRisk.specialist && (finding.risk_score ?? 0) >= 0.4;
+              const scoreColor = !finding.available || finding.risk_score === null
+                ? "text-slate-400"
+                : finding.risk_score >= 0.7
+                ? "text-rose-700"
+                : finding.risk_score >= 0.4
+                ? "text-amber-700"
+                : "text-emerald-700";
 
               return (
                 <div
                   key={finding.specialist}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isActive}
                   onMouseEnter={() => setHoveredSpec(finding.specialist)}
                   onMouseLeave={() => setHoveredSpec(null)}
-                  className={`rounded-xl border p-4 flex flex-col justify-between min-h-[110px] transition-all duration-200 cursor-pointer ${getRiskColorClass(
-                    finding.risk_score,
-                    finding.flag
-                  )} ${isHovered ? "ring-1 ring-slate-300 scale-[1.02]" : "shadow-sm"}`}
+                  onClick={() => toggleSelected(finding.specialist)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleSelected(finding.specialist);
+                    }
+                  }}
+                  className={`relative rounded-xl border p-4 flex flex-col justify-between min-h-[110px] transition-all duration-200 cursor-pointer outline-none ${getRiskColorClass(
+                    finding.risk_score
+                  )} ${isTopRisk ? "ring-2 ring-rose-300" : ""} ${isActive ? "ring-2 ring-sky-400 shadow-md scale-[1.02]" : "shadow-sm"}`}
                 >
+                  {isTopRisk && (
+                    <span className="absolute -top-2 left-3 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                      Top Concern
+                    </span>
+                  )}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-slate-900">
                         {specialistLabels[finding.specialist] ?? finding.specialist}
                       </span>
                       <span className="text-[9px] uppercase tracking-wider text-slate-400 mt-0.5">
-                        {finding.flag ? "Anomaly Flagged" : "Within Boundary"}
+                        {getSeverityLabel(finding.available, finding.risk_score)}
                       </span>
                     </div>
                     {/* Ring indicator */}
                     <div className="relative flex items-center justify-center h-3.5 w-3.5 mt-0.5">
                       <span className={`h-2.5 w-2.5 rounded-full ${
-                        finding.flag ? "bg-red-500" : finding.risk_score >= 0.4 ? "bg-amber-500" : "bg-emerald-500"
+                        !finding.available
+                          ? "bg-slate-400"
+                          : (finding.risk_score ?? 0) >= 0.7
+                          ? "bg-red-500"
+                          : (finding.risk_score ?? 0) >= 0.4
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
                       }`} />
                     </div>
                   </div>
@@ -267,8 +233,8 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                     <span className="text-[10px] font-mono text-slate-400">
                       RISK PROBABILITY
                     </span>
-                    <span className="text-lg font-bold font-mono tracking-tight text-slate-950 leading-none">
-                      {(finding.risk_score * 100).toFixed(0)}%
+                    <span className={`text-lg font-bold font-mono tracking-tight leading-none ${scoreColor}`}>
+                      {finding.risk_score !== null ? `${(finding.risk_score * 100).toFixed(0)}%` : "N/A"}
                     </span>
                   </div>
                 </div>

@@ -69,7 +69,7 @@ export function PipelineVisualizer({
   const pipelineFinished = allSpecialistsDone && synthesisDone && !isLoading;
 
   const getRiskColor = (spec: SpecialistResult | undefined) => {
-    if (!spec) return "bg-slate-100 border-slate-200 text-slate-400";
+    if (!spec || !spec.available || spec.risk_score === null) return "bg-slate-100 border-slate-200 text-slate-400";
     if (spec.flag || spec.risk_score >= 0.7) return "bg-rose-50 border-rose-300 text-rose-600 shadow-[0_0_12px_rgba(244,63,94,0.15)]";
     if (spec.risk_score >= 0.4) return "bg-amber-50 border-amber-300 text-amber-600 shadow-[0_0_12px_rgba(245,158,11,0.15)]";
     return "bg-emerald-50 border-emerald-300 text-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.15)]";
@@ -135,7 +135,7 @@ export function PipelineVisualizer({
               // Color selection
               const colorClass = getRiskColor(spec);
               const isActive = isLoading && !isDone;
-              const isFlagged = isDone && spec.flag;
+              const isFlagged = isDone && spec.available && spec.flag;
 
               return (
                 <div key={key} className={`flex flex-col items-center gap-1 p-2 rounded-xl border bg-white w-full min-w-[64px] transition-all duration-300 ${
@@ -146,7 +146,9 @@ export function PipelineVisualizer({
                     : `flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-300 text-xs font-bold ${colorClass}`
                   }>
                     {isDone ? (
-                      spec.flag ? (
+                      !spec.available || spec.risk_score === null ? (
+                        <span className="text-[9px] font-bold text-slate-400">N/A</span>
+                      ) : spec.flag ? (
                         <svg className="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>

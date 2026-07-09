@@ -10,12 +10,13 @@ interface ReportExportProps {
   specialists: SpecialistResult[];
   synthesis: SynthesisReport | null;
   clinicalBrief: string;
-  isBriefLoading?: boolean; // kept for API compatibility, no longer used
+  isBriefLoading?: boolean; // true while the LLM report agent is generating the brief
 }
 
 export function ReportExport({
   patientId,
   clinicalBrief,
+  isBriefLoading = false,
 }: ReportExportProps) {
   const [copied, setCopied] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -53,7 +54,9 @@ export function ReportExport({
             Clinical discovery brief &amp; document export
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {clinicalBrief
+            {isBriefLoading
+              ? "Generating clinical discovery brief via LLM report agent..."
+              : clinicalBrief
               ? "Brief auto-generated. Copy or download below."
               : "Run an analysis to auto-generate the clinical discovery brief."}
           </p>

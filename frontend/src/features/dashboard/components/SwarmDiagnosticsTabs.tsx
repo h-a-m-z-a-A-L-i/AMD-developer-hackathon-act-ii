@@ -85,6 +85,10 @@ export function SwarmDiagnosticsTabs({
   const [expandedLogs, setExpandedLogs] = useState<Record<string, boolean>>({});
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
+  const ALL_SPECIALIST_KEYS = Object.keys(specialistMeta);
+  const arrivedKeys = new Set(specialists.map((s) => s.specialist));
+  const pendingKeys = isLoading ? ALL_SPECIALIST_KEYS.filter((k) => !arrivedKeys.has(k)) : [];
+
   const toggleLog = (key: string) => {
     setExpandedLogs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -95,50 +99,8 @@ export function SwarmDiagnosticsTabs({
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const isCutoffBreached = (key: string, val: number, threshold: number) => {
-    if (key.toLowerCase().includes("egfr")) {
-      return val < threshold;
-    }
-    return val > threshold;
-  };
-
-  const getStatusBadge = (key: string, val: number, threshold: number) => {
-    const breached = isCutoffBreached(key, val, threshold);
-    if (breached) {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-100/50 px-2.5 py-0.5 text-xs font-semibold text-rose-600">
-          <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          Early Flag
-        </span>
-      );
-    }
-    return (
-      <span className="rounded-full bg-emerald-50 border border-emerald-100/50 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
-        Normal
-      </span>
-    );
-  };
-
-  const getThresholdValue = (labKey: string, thresholds: Record<string, number>) => {
-    if (labKey === "egfr") return thresholds["egfr_cutoff"] ?? 84.8;
-    if (labKey === "uacr_mg_g") return thresholds["uacr_cutoff"] ?? 15.5;
-    if (labKey === "creatinine_mg_dl") return thresholds["creatinine_cutoff"] ?? 1.1;
-    if (labKey === "a1c_percent") return thresholds["a1c_cutoff"] ?? 6.8;
-    if (labKey === "years_with_diabetes") return thresholds["years_cutoff"] ?? 10;
-
-    const prefix = labKey.split("_")[0];
-    const match = Object.keys(thresholds).find((k) => k.startsWith(prefix));
-    if (match) return thresholds[match];
-
-    if (labKey.includes("ldl")) return 100;
-    if (labKey.includes("hdl")) return 40;
-    if (labKey.includes("triglycerides")) return 150;
-    if (labKey.includes("systolic")) return 130;
-    return 0;
-  };
-
+  // Average duration across specialists that actually ran, used only for
+  // the benchmark tab's derived fallback object below - not a clinical value.
   const activeBenchmark = benchmark || (synthesis ? {
     total_duration_ms: specialists.reduce((acc, s) => acc + s.duration_ms, 0) + (synthesis.duration_ms || 0),
     agents_run: 5,
@@ -196,14 +158,21 @@ export function SwarmDiagnosticsTabs({
 
         {activeTab === "analysis" && (
           <div className="space-y-6 animate-fade-in">
-            {specialists.length === 0 ? (
-              <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-slate-200 text-slate-400 font-sans italic">
-                Awaiting swarm analysis data to construct threshold mapping...
+            {specialists.length === 0 && !isLoading ? (
+              <div className="flex min-h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 text-center p-8">
+                <svg className="h-10 w-10 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                </svg>
+                <p className="text-sm font-semibold text-slate-500">No threshold mapping yet</p>
+                <p className="text-xs text-slate-400 max-w-[280px]">Run the swarm on a patient to see each specialist&apos;s reasoning, referenced labs, and applied cutoffs here.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-6">
                 {specialists.map((spec) => {
                   const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase(), themeColor: "slate" };
+                  const thresholdEntries = Object.entries(spec.thresholds_used || {});
+                  const labEntries = Object.entries(spec.input_labs || {});
+
                   return (
                     <div
                       key={spec.specialist}
@@ -214,63 +183,106 @@ export function SwarmDiagnosticsTabs({
                           <SpecialistIcon type={spec.specialist} className="h-5 w-5 text-slate-600" />
                           <h4 className="font-bold text-slate-800">{meta.label}</h4>
                         </div>
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${spec.flag
-                            ? "bg-rose-50 text-rose-700 border-rose-100/50"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-100/50"
-                          }`}>
-                          {spec.flag ? "⚠️ Anomalies Flagged" : "✓ Clear of Early Flags"}
-                        </span>
+                        {!spec.available ? (
+                          <span className="rounded-full px-3 py-1 text-xs font-semibold border bg-slate-100 text-slate-500 border-slate-200">
+                            &mdash; Unavailable
+                          </span>
+                        ) : (
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold border ${spec.flag
+                              ? "bg-rose-50 text-rose-700 border-rose-100/50"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-100/50"
+                            }`}>
+                            {spec.flag ? "⚠️ Anomalies Flagged" : "✓ Clear of Early Flags"}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        <div className="lg:col-span-6 space-y-2">
-                          <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clinical Reasoning</h5>
-                          <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                            {spec.reasoning}
+                      {!spec.available ? (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-5">
+                          <p className="text-sm text-slate-500 leading-relaxed">
+                            No analysis was performed for this specialist &mdash; there is no rule-based
+                            fallback in this system. <span className="font-medium text-slate-600">{spec.reasoning}</span>
                           </p>
-                          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-400 font-mono">
-                            <span>Score Risk Level:</span>
-                            <span className={spec.flag ? "text-rose-600" : spec.risk_score >= 0.4 ? "text-amber-600" : "text-emerald-600"}>
-                              {(spec.risk_score * 100).toFixed(0)}%
-                            </span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                          <div className="lg:col-span-6 space-y-2">
+                            <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clinical Reasoning</h5>
+                            <p className="text-sm text-slate-600 leading-relaxed bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                              {spec.reasoning}
+                            </p>
+                            <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-400 font-mono">
+                              <span>Score Risk Level:</span>
+                              <span className={spec.flag ? "text-rose-600" : (spec.risk_score ?? 0) >= 0.4 ? "text-amber-600" : "text-emerald-600"}>
+                                {spec.risk_score !== null ? `${(spec.risk_score * 100).toFixed(0)}%` : "N/A"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="lg:col-span-6 space-y-4">
+                            <div className="space-y-2">
+                              <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Patient Values Referenced</h5>
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50/20 divide-y divide-slate-200">
+                                {labEntries.length === 0 ? (
+                                  <p className="p-3 text-xs text-slate-400 italic">No lab values recorded for this specialist.</p>
+                                ) : labEntries.map(([labKey, val]) => (
+                                  <div key={labKey} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                                    <span className="font-semibold text-slate-700">{labLabels[labKey] || labKey}</span>
+                                    <span className="font-mono text-slate-600">{typeof val === "number" ? val.toFixed(val % 1 === 0 ? 0 : 2) : String(val)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                Cutoffs The Model Applied This Run
+                              </h5>
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50/20 divide-y divide-slate-200">
+                                {thresholdEntries.length === 0 ? (
+                                  <p className="p-3 text-xs text-slate-400 italic">
+                                    The model didn&apos;t report explicit numeric thresholds for this run &mdash; see the reasoning text above.
+                                  </p>
+                                ) : thresholdEntries.map(([label, val]) => (
+                                  <div key={label} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                                    <span className="font-semibold text-slate-700">{label}</span>
+                                    <span className="font-mono text-slate-600">{typeof val === "number" ? val.toFixed(val % 1 === 0 ? 0 : 2) : String(val)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-slate-400 leading-relaxed">
+                                These are the exact cutoffs the model reported using this run &mdash; not a fixed reference table. They may vary patient to patient.
+                              </p>
+                            </div>
                           </div>
                         </div>
+                      )}
+                    </div>
+                  );
+                })}
 
+                {pendingKeys.map((key) => {
+                  const meta = specialistMeta[key];
+                  return (
+                    <div key={key} className="rounded-3xl border border-slate-200 bg-white p-6 animate-pulse">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <SpecialistIcon type={key} className="h-5 w-5 text-slate-300" />
+                          <h4 className="font-bold text-slate-400">{meta.label}</h4>
+                        </div>
+                        <span className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border bg-sky-50 text-sky-600 border-sky-100">
+                          <span className="h-3 w-3 animate-spin rounded-full border border-sky-500 border-t-transparent" />
+                          Analyzing&hellip;
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <div className="lg:col-span-6 space-y-2">
-                          <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Early-Warning Threshold Comparison</h5>
-                          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50/20">
-                            <table className="min-w-full divide-y divide-slate-200 text-sm">
-                              <thead className="bg-slate-50">
-                                <tr>
-                                  <th scope="col" className="px-4 py-2 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Biomarker</th>
-                                  <th scope="col" className="px-4 py-2 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Patient Value</th>
-                                  <th scope="col" className="px-4 py-2 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Early Cutoff</th>
-                                  <th scope="col" className="px-4 py-2 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-200 bg-white">
-                                {Object.entries(spec.input_labs).map(([labKey, val]) => {
-                                  const threshold = getThresholdValue(labKey, spec.thresholds_used);
-                                  return (
-                                    <tr key={labKey} className="hover:bg-slate-50/30">
-                                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-700">
-                                        {labLabels[labKey] || labKey}
-                                      </td>
-                                      <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-600">
-                                        {val.toFixed(val % 1 === 0 ? 0 : 2)}
-                                      </td>
-                                      <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-400">
-                                        {threshold.toFixed(threshold % 1 === 0 ? 0 : 2)}
-                                      </td>
-                                      <td className="whitespace-nowrap px-4 py-3">
-                                        {getStatusBadge(labKey, val, threshold)}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
+                          <div className="h-3 w-32 rounded-full bg-slate-100" />
+                          <div className="h-16 rounded-2xl bg-slate-50 border border-slate-100" />
+                        </div>
+                        <div className="lg:col-span-6 space-y-2">
+                          <div className="h-3 w-40 rounded-full bg-slate-100" />
+                          <div className="h-16 rounded-2xl bg-slate-50 border border-slate-100" />
                         </div>
                       </div>
                     </div>
@@ -283,9 +295,13 @@ export function SwarmDiagnosticsTabs({
 
         {activeTab === "logs" && (
           <div className="space-y-6 animate-fade-in">
-            {specialists.length === 0 ? (
-              <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-slate-200 text-slate-400 font-sans italic">
-                Awaiting sandbox outputs to populate agent execution traces...
+            {specialists.length === 0 && !isLoading ? (
+              <div className="flex min-h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 text-center p-8">
+                <svg className="h-10 w-10 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                <p className="text-sm font-semibold text-slate-500">No execution traces yet</p>
+                <p className="text-xs text-slate-400 max-w-[280px]">Run the swarm to see each agent&apos;s step-by-step trace and the sandboxed Python it actually executed.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -308,18 +324,18 @@ export function SwarmDiagnosticsTabs({
                             <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mt-0.5">
                               <span>Duration: {spec.duration_ms} ms</span>
                               <span>&middot;</span>
-                              <span>Mode: {spec.used_llm ? "LLM Sandbox" : "Deterministic Fallback"}</span>
+                              <span>Mode: {spec.available ? "LLM Sandbox" : "Unavailable"}</span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          {spec.used_llm ? (
+                          {spec.available ? (
                             <span className="rounded-full bg-emerald-50 border border-emerald-100/50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wide">
                               LLM
                             </span>
                           ) : (
                             <span className="rounded-full bg-slate-100 border border-slate-200 px-2.5 py-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                              Deterministic
+                              Unavailable
                             </span>
                           )}
                           <svg
@@ -370,6 +386,29 @@ export function SwarmDiagnosticsTabs({
                     </div>
                   );
                 })}
+
+                {pendingKeys.map((key) => {
+                  const meta = specialistMeta[key];
+                  return (
+                    <div key={key} className="rounded-3xl border border-slate-200 bg-white overflow-hidden animate-pulse">
+                      <div className="w-full flex items-center justify-between p-5 bg-slate-50/40 border-b border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <SpecialistIcon type={key} className="h-5 w-5 text-slate-300" />
+                          <div className="text-left">
+                            <h4 className="font-bold text-slate-400">{meta.label} Code Log</h4>
+                            <div className="flex items-center gap-2 text-xs font-mono text-slate-300 mt-0.5">
+                              <span className="h-2.5 w-24 rounded-full bg-slate-100 inline-block" />
+                            </div>
+                          </div>
+                        </div>
+                        <span className="flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-100 px-2.5 py-0.5 text-[10px] font-bold text-sky-600 uppercase tracking-wide">
+                          <span className="h-2.5 w-2.5 animate-spin rounded-full border border-sky-500 border-t-transparent" />
+                          Running
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -385,7 +424,7 @@ export function SwarmDiagnosticsTabs({
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Latency & API Call Audits</p>
                   </div>
                   <span className="rounded-full bg-sky-50 border border-sky-100/50 px-3 py-1 text-xs font-semibold text-sky-700 font-mono">
-                    Provider: {activeBenchmark.provider || "None (Rule-based Fallback)"}
+                    Provider: {activeBenchmark.provider || "None (LLM Unreachable)"}
                   </span>
                 </div>
 
@@ -450,15 +489,29 @@ export function SwarmDiagnosticsTabs({
                 </div>
 
                 {llmModel && (
-                  <div className="mt-6 border-t border-slate-100 pt-4 flex flex-col sm:flex-row justify-between text-xs text-slate-400 font-mono gap-1">
-                    <span>Active LLM Model: {llmModel}</span>
-                    <span>Provider Mode: {llmStatus}</span>
+                  <div className="mt-6 border-t border-slate-100 pt-4 flex items-center justify-between text-xs text-slate-400 font-mono">
+                    <span>Active LLM Model</span>
+                    <span className="text-slate-600 font-semibold">{llmModel}</span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-slate-200 text-slate-400 font-sans italic">
-                Awaiting pipeline analysis to generate benchmark diagrams...
+              <div className="flex min-h-[300px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 text-center p-8">
+                {isLoading ? (
+                  <>
+                    <span className="h-8 w-8 animate-spin rounded-full border-2 border-sky-500 border-t-transparent mb-1" />
+                    <p className="text-sm font-semibold text-slate-500">Timing the swarm run&hellip;</p>
+                    <p className="text-xs text-slate-400 max-w-[280px]">Latency and API call diagnostics finalize once the pipeline completes.</p>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-10 w-10 text-slate-300 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm font-semibold text-slate-500">No benchmark data yet</p>
+                    <p className="text-xs text-slate-400 max-w-[280px]">Run the swarm to see latency, agent count, and LLM call diagnostics for that pass.</p>
+                  </>
+                )}
               </div>
             )}
           </div>

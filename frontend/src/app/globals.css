@@ -30,3 +30,161 @@ body {
   border-radius: 1.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
+
+/* ===================================================================
+   Dark mode
+   Applied when <html> has the "dark" class (toggled by ThemeToggle).
+   Rather than hand-editing every component, we override the exact
+   Tailwind utility classes already in use across the dashboard so the
+   whole app re-themes consistently from one place.
+=================================================================== */
+
+.dark {
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+  --panel: rgba(15, 23, 42, 0.75);
+  --panel-border: rgba(148, 163, 184, 0.12);
+  /* Tells the browser to use its dark UI chrome for anything it renders
+     natively — scrollbars, <select> dropdown panels, checkboxes, date
+     pickers, etc. Without this the browser assumes a light page and
+     paints native widgets (like scrollbar thumbs) white regardless of
+     our own CSS. */
+  color-scheme: dark;
+}
+
+.dark body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Firefox scrollbar */
+.dark * {
+  scrollbar-color: #334155 transparent;
+}
+
+/* Webkit (Chrome/Edge/Safari) scrollbars, including the .scrollbar-thin
+   utility classes used on the terminal / code panels. */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;
+}
+
+/* Surfaces */
+.dark .bg-white { background-color: #0f172a !important; }
+.dark .bg-slate-50 { background-color: #0b1120 !important; }
+.dark .bg-slate-50\/90 { background-color: rgba(11, 17, 32, 0.9) !important; }
+.dark .bg-slate-50\/80 { background-color: rgba(15, 23, 42, 0.6) !important; }
+.dark .bg-slate-50\/70 { background-color: rgba(15, 23, 42, 0.6) !important; }
+.dark .bg-slate-50\/60 { background-color: rgba(15, 23, 42, 0.5) !important; }
+.dark .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5) !important; }
+.dark .bg-slate-50\/40 { background-color: rgba(15, 23, 42, 0.4) !important; }
+.dark .bg-slate-50\/20 { background-color: rgba(15, 23, 42, 0.3) !important; }
+.dark .bg-slate-100 { background-color: #1e293b !important; }
+.dark .bg-slate-200 { background-color: #334155 !important; }
+.dark .hover\:bg-slate-50:hover { background-color: #16213a !important; }
+.dark .hover\:bg-slate-50\/50:hover { background-color: rgba(30, 41, 59, 0.5) !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #1e293b !important; }
+.dark .hover\:bg-slate-200:hover { background-color: #334155 !important; }
+
+/* Borders */
+.dark .border-slate-100 { border-color: #1e293b !important; }
+.dark .border-slate-200 { border-color: #263449 !important; }
+.dark .border-slate-200\/60 { border-color: rgba(38, 52, 73, 0.6) !important; }
+.dark .border-slate-300 { border-color: #334155 !important; }
+.dark .border-dashed.border-slate-200,
+.dark .border-dashed.border-slate-300 { border-color: #334155 !important; }
+.dark .hover\:border-slate-300:hover { border-color: #3b4c65 !important; }
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #263449 !important; }
+
+/* Text */
+.dark .text-slate-900 { color: #f1f5f9 !important; }
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #94a3b8 !important; }
+.dark .text-slate-400 { color: #64748b !important; }
+.dark .text-slate-300 { color: #475569 !important; }
+.dark .hover\:text-slate-600:hover { color: #cbd5e1 !important; }
+.dark .hover\:text-slate-700:hover { color: #e2e8f0 !important; }
+
+/* Ring / shadow tweaks so cards don't glow oddly on dark backgrounds */
+.dark .shadow-sm,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-2xl {
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -2px rgba(0, 0, 0, 0.35);
+}
+.dark .ring-slate-300 { --tw-ring-color: #475569 !important; }
+
+/* Pastel status chips — dim the backgrounds, keep the accent text colors
+   readable, otherwise they read as too bright on a dark canvas. */
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12) !important; }
+.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.12) !important; }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.12) !important; }
+.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.12) !important; }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.12) !important; }
+.dark .bg-emerald-50\/60 { background-color: rgba(16, 185, 129, 0.1) !important; }
+.dark .bg-rose-50\/60 { background-color: rgba(244, 63, 94, 0.1) !important; }
+.dark .bg-amber-50\/60 { background-color: rgba(245, 158, 11, 0.1) !important; }
+.dark .bg-sky-50\/60 { background-color: rgba(14, 165, 233, 0.1) !important; }
+.dark .bg-sky-50\/70 { background-color: rgba(14, 165, 233, 0.1) !important; }
+.dark .bg-sky-50\/50 { background-color: rgba(14, 165, 233, 0.1) !important; }
+.dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.18) !important; }
+.dark .bg-red-50\/60 { background-color: rgba(239, 68, 68, 0.1) !important; }
+
+/* Pastel status chip BORDERS — these were left at their light-mode
+   hue (e.g. amber-200, rose-200) which reads as a harsh glowing
+   outline against a dark card. Dim them so they read as a subtle
+   accent instead of a bright ring. */
+.dark .border-emerald-100,
+.dark .border-emerald-100\/50,
+.dark .border-emerald-200 { border-color: rgba(16, 185, 129, 0.35) !important; }
+.dark .border-rose-100,
+.dark .border-rose-100\/50,
+.dark .border-rose-200 { border-color: rgba(244, 63, 94, 0.35) !important; }
+.dark .border-amber-100,
+.dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.35) !important; }
+.dark .border-sky-100,
+.dark .border-sky-200 { border-color: rgba(14, 165, 233, 0.35) !important; }
+.dark .border-red-200,
+.dark .border-red-300 { border-color: rgba(239, 68, 68, 0.35) !important; }
+
+/* Pastel status chip TEXT — the darkest shades (700/800) were tuned for
+   a light background and lose contrast/legibility on a dark one. Lift
+   them a step brighter. */
+.dark .text-emerald-700,
+.dark .text-emerald-800 { color: #34d399 !important; }
+.dark .text-emerald-600 { color: #34d399 !important; }
+.dark .text-rose-700,
+.dark .text-rose-800 { color: #fb7185 !important; }
+.dark .text-rose-600 { color: #fb7185 !important; }
+.dark .text-amber-700,
+.dark .text-amber-800 { color: #fbbf24 !important; }
+.dark .text-amber-600 { color: #fbbf24 !important; }
+.dark .text-sky-700 { color: #38bdf8 !important; }
+.dark .text-sky-600 { color: #38bdf8 !important; }
+.dark .text-red-600,
+.dark .text-red-700 { color: #f87171 !important; }
+
+/* Terminal / brief panels already use slate-900/950 + emerald text —
+   they stay visually consistent between light & dark automatically. */
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}

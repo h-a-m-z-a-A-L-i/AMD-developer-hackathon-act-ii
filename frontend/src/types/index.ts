@@ -27,23 +27,25 @@ export interface Labs {
 
 export interface SpecialistResult {
   specialist: "retinal" | "renal" | "neuropathy" | "cardiovascular" | string;
-  risk_score: number;        // float 0-1, now always clamped server-side
-  flag: boolean;              // true if clinical cutoff bounds are breached
-  reasoning: string;          // human-readable explanation (LLM- or rule-generated)
-  used_llm: boolean;          // NEW — true if a real LLM call produced this, false if rule-based fallback
-  duration_ms: number;        // NEW — wall-clock time for this specialist's run, including any failed retries
-  input_labs: Record<string, number>;      // NEW — subset of patient labs this specialist actually read
-  thresholds_used: Record<string, number>; // NEW — the numeric cutoffs it compared against
-  steps: string[];            // NEW — ordered human-readable trace for the Agent Logs tab
-  code_used: string | null;   // NEW — the exact Python that executed (fallback template or LLM-written)
+  available: boolean;         // false when no LLM was reachable / code failed twice — NO fallback data exists in this case
+  risk_score: number | null;  // float 0-1, null when unavailable (never a fabricated 0)
+  flag: boolean | null;       // null when unavailable
+  reasoning: string;          // human-readable explanation, always LLM-generated (or an honest unavailable message)
+  used_llm: boolean;          // true if a real LLM call produced this result
+  duration_ms: number;        // wall-clock time for this specialist's run, including any failed retries
+  input_labs: Record<string, number>;      // subset of patient labs this specialist actually read
+  thresholds_used: Record<string, number>; // the exact numeric cutoffs the LLM says it applied this run — freeform labels, not a fixed reference table
+  steps: string[];             // ordered human-readable trace for the Agent Logs tab
+  code_used: string | null;    // the exact Python the LLM wrote and that executed
 }
 
 export interface SynthesisReport {
-  top_concern: string;
-  recommendation: string;
-  duration_ms: number;              // NEW
-  used_llm: boolean;                // NEW
-  synthesis_error: string | null;   // NEW — non-null if LLM synthesis was attempted and failed (bad JSON, network error, etc.)
+  top_concern: string | null;       // null when unavailable
+  recommendation: string | null;    // null when unavailable
+  available: boolean;               // false when no LLM was reachable or the call failed — no fallback compiled
+  duration_ms: number;
+  used_llm: boolean;
+  synthesis_error: string | null;   // non-null if synthesis is unavailable, explaining why
 }
 
 export interface BenchmarkSummary {
