@@ -3,6 +3,9 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { SpecialistResult, SynthesisReport } from "@/types";
+import { FadeInUp } from "@/components/animations/FadeInUp";
+import { HoverScale } from "@/components/animations/HoverScale";
+import { StaggerContainer, StaggerItem } from "@/components/animations/Stagger";
 
 // three.js/WebGL can't run server-side, and the libs are sizeable, so this
 // is code-split out of the initial dashboard bundle and only ever mounted
@@ -142,7 +145,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
         <div className="flex-[1.5] flex flex-col gap-3">
           {/* Executive Summary Compiling */}
           {synthesis && synthesis.available && highestRisk && (
-            <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm">
+            <FadeInUp className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm">
               <div className="absolute inset-y-0 left-0 w-[3px] bg-rose-400" />
               <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-slate-400">
                 Highest Risk Trajectory
@@ -158,19 +161,19 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
               <p className="mt-2.5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-2">
                 <span className="font-bold text-slate-800">Clinical Rec:</span> {synthesis.recommendation}
               </p>
-            </div>
+            </FadeInUp>
           )}
           {synthesis && !synthesis.available && (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
+            <FadeInUp className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
               <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-slate-400">
                 Synthesis Unavailable
               </p>
               <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{synthesis.synthesis_error}</p>
-            </div>
+            </FadeInUp>
           )}
 
           {/* Specialist Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
             {specialists.map((finding) => {
               const isActive = activeSpec === finding.specialist;
               const isTopRisk = !!highestRisk && finding.specialist === highestRisk.specialist && (finding.risk_score ?? 0) >= 0.4;
@@ -183,24 +186,24 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                 : "text-emerald-700";
 
               return (
-                <div
-                  key={finding.specialist}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={isActive}
-                  onMouseEnter={() => setHoveredSpec(finding.specialist)}
-                  onMouseLeave={() => setHoveredSpec(null)}
-                  onClick={() => toggleSelected(finding.specialist)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSelected(finding.specialist);
-                    }
-                  }}
-                  className={`relative rounded-xl border p-4 flex flex-col justify-between min-h-[110px] transition-all duration-200 cursor-pointer outline-none ${getRiskColorClass(
-                    finding.risk_score
-                  )} ${isTopRisk ? "ring-2 ring-rose-300" : ""} ${isActive ? "ring-2 ring-sky-400 shadow-md scale-[1.02]" : "shadow-sm"}`}
-                >
+                <StaggerItem key={finding.specialist} className="flex">
+                  <HoverScale
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={isActive}
+                    onMouseEnter={() => setHoveredSpec(finding.specialist)}
+                    onMouseLeave={() => setHoveredSpec(null)}
+                    onClick={() => toggleSelected(finding.specialist)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleSelected(finding.specialist);
+                      }
+                    }}
+                    className={`w-full relative rounded-xl border p-4 flex flex-col justify-between min-h-[110px] transition-colors duration-200 cursor-pointer outline-none ${getRiskColorClass(
+                      finding.risk_score
+                    )} ${isTopRisk ? "ring-2 ring-rose-300" : ""} ${isActive ? "ring-2 ring-sky-400 shadow-md" : "shadow-sm"}`}
+                  >
                   {isTopRisk && (
                     <span className="absolute -top-2 left-3 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
                       Top Concern
@@ -237,10 +240,11 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                       {finding.risk_score !== null ? `${(finding.risk_score * 100).toFixed(0)}%` : "N/A"}
                     </span>
                   </div>
-                </div>
+                  </HoverScale>
+                </StaggerItem>
               );
             })}
-          </div>
+          </StaggerContainer>
 
         </div>
 

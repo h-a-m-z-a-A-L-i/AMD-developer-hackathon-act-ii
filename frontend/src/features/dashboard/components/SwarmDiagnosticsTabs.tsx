@@ -6,6 +6,7 @@ import { PipelineVisualizer } from "./PipelineVisualizer";
 import { OrganRiskMap } from "./OrganRiskMap";
 import { SynthesisCallout } from "./SynthesisCallout";
 import { ClinicalWarningLegend } from "./ClinicalWarningLegend";
+import { HoverScale } from "@/components/animations/HoverScale";
 
 interface SwarmDiagnosticsTabsProps {
   specialists: SpecialistResult[];
@@ -112,7 +113,7 @@ export function SwarmDiagnosticsTabs({
     <div className="flex flex-col gap-3">
 
       {/* Horizontally scrollable tab row — no wrapping on any screen size */}
-      <div className="-mx-px flex overflow-x-auto border-b border-slate-200 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+      <div className="-mx-px flex overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
         {(["overview", "analysis", "logs", "benchmark"] as const).map((tab) => (
           <button
             key={tab}
@@ -137,13 +138,13 @@ export function SwarmDiagnosticsTabs({
               patientId={patientId}
             />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-              <div className="lg:col-span-7 xl:col-span-8 rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+              <HoverScale className="lg:col-span-7 xl:col-span-8 rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
                 <OrganRiskMap
                   specialists={specialists}
                   synthesis={synthesis}
                   isLoading={isLoading}
                 />
-              </div>
+              </HoverScale>
               <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-3">
                 <SynthesisCallout
                   specialists={specialists}
@@ -174,9 +175,9 @@ export function SwarmDiagnosticsTabs({
                   const labEntries = Object.entries(spec.input_labs || {});
 
                   return (
-                    <div
+                    <HoverScale
                       key={spec.specialist}
-                      className="rounded-[32px] border border-slate-200 bg-white p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-md"
+                      className="rounded-[32px] border border-slate-200 bg-white p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md"
                     >
                       <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                         <div className="flex items-center gap-2">
@@ -257,7 +258,7 @@ export function SwarmDiagnosticsTabs({
                           </div>
                         </div>
                       )}
-                    </div>
+                    </HoverScale>
                   );
                 })}
 
@@ -309,9 +310,9 @@ export function SwarmDiagnosticsTabs({
                   const meta = specialistMeta[spec.specialist] ?? { label: spec.specialist.toUpperCase(), themeColor: "slate" };
                   const isExpanded = !!expandedLogs[spec.specialist];
                   return (
-                    <div
+                    <HoverScale
                       key={spec.specialist}
-                      className="rounded-[32px] border border-slate-200 bg-white overflow-hidden transition-all duration-200 hover:border-slate-300 hover:shadow-md"
+                      className="rounded-[32px] border border-slate-200 bg-white overflow-hidden transition-colors duration-200 hover:border-slate-300 hover:shadow-md"
                     >
                       <button
                         onClick={() => toggleLog(spec.specialist)}
@@ -383,7 +384,7 @@ export function SwarmDiagnosticsTabs({
                           )}
                         </div>
                       )}
-                    </div>
+                    </HoverScale>
                   );
                 })}
 
@@ -417,7 +418,7 @@ export function SwarmDiagnosticsTabs({
         {activeTab === "benchmark" && (
           <div className="space-y-6 animate-fade-in">
             {activeBenchmark ? (
-              <div className="rounded-[32px] border border-slate-200 bg-white p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+              <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-6">
                   <div>
                     <h4 className="font-bold text-slate-800">Swarm Performance Diagnostics</h4>
@@ -494,7 +495,7 @@ export function SwarmDiagnosticsTabs({
                     <span className="text-slate-600 font-semibold">{llmModel}</span>
                   </div>
                 )}
-              </div>
+              </HoverScale>
             ) : (
               <div className="flex min-h-[300px] flex-col items-center justify-center gap-2 rounded-[32px] border border-dashed border-slate-200 text-center p-8">
                 {isLoading ? (

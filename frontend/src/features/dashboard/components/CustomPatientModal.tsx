@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { CustomPatientInput } from "@/types";
 
 interface CustomPatientModalProps {
@@ -51,8 +52,6 @@ export function CustomPatientModal({
 }: CustomPatientModalProps) {
   const [form, setForm] = useState<CustomPatientInput>(defaultValues);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
-
-  if (!isOpen) return null;
 
   const handleChange = (name: keyof CustomPatientInput, val: any) => {
     setForm((prev) => ({ ...prev, [name]: val }));
@@ -118,8 +117,22 @@ export function CustomPatientModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-2xl rounded-[32px] border border-slate-200 bg-white shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="relative w-full max-w-2xl rounded-[32px] border border-slate-200 bg-white shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden"
+          >
         
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 sm:px-8">
@@ -399,7 +412,9 @@ export function CustomPatientModal({
           </button>
         </div>
 
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

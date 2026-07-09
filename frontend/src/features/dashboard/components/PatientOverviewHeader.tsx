@@ -1,4 +1,5 @@
 import { Demographics, Labs } from "@/types";
+import { HoverScale } from "@/components/animations/HoverScale";
 
 interface PatientOverviewHeaderProps {
   patientId: string | null;
@@ -42,12 +43,12 @@ export function PatientOverviewHeader({ patientId, demographics, labs }: Patient
 
       {labs && (
         <div className="grid grid-cols-2 gap-3 sm:gap-3 md:grid-cols-4">
-          <div className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+          <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
             <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">HbA1c</p>
             <p className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">{demographics.a1c_percent}%</p>
             <p className="mt-1.5 text-[10px] sm:text-xs text-slate-400 font-medium">Controlled range</p>
-          </div>
-          <div className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+          </HoverScale>
+          <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
             <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">eGFR</p>
             <p className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
               {typeof labs.egfr === "number" ? labs.egfr.toFixed(1) : "--"}
@@ -61,8 +62,8 @@ export function PatientOverviewHeader({ patientId, demographics, labs }: Patient
             }`}>
               {typeof labs.egfr === "number" ? (eGfrNormal ? "Normal" : "Low") : "Pending"}
             </span>
-          </div>
-          <div className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+          </HoverScale>
+          <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
             <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">UACR</p>
             <p className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
               {typeof labs.uacr_mg_g === "number" ? labs.uacr_mg_g.toFixed(1) : "--"}
@@ -76,8 +77,8 @@ export function PatientOverviewHeader({ patientId, demographics, labs }: Patient
             }`}>
               {typeof labs.uacr_mg_g === "number" ? (uacrElevated ? "Elevated" : "Normal") : "Pending"}
             </span>
-          </div>
-          <div className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md">
+          </HoverScale>
+          <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-4 sm:p-5 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
             <p className="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Systolic BP</p>
             <p className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
               {typeof labs.systolic_bp === "number" ? Math.round(labs.systolic_bp) : "--"}
@@ -91,7 +92,7 @@ export function PatientOverviewHeader({ patientId, demographics, labs }: Patient
             }`}>
               {typeof labs.systolic_bp === "number" ? (bpElevated ? "Elevated" : "Normal") : "Pending"}
             </span>
-          </div>
+          </HoverScale>
         </div>
       )}
     </div>

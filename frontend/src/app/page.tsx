@@ -13,6 +13,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Logo } from "@/components/theme/Logo";
 import { RecordSelect } from "@/features/dashboard/components/RecordSelect";
 import { fetchBrief } from "@/lib/generateBrief";
+import { HoverScale } from "@/components/animations/HoverScale";
 import type {
   PatientDropdownItem,
   Demographics,
@@ -473,29 +474,33 @@ export default function DashboardPage() {
                   disabled={isPipelineRunning}
                 />
               )}
-              <button
-                onClick={() => triggerPipelineAnalysis(selectedPatientId)}
-                disabled={isPipelineRunning || !selectedPatientId}
-                className="flex h-11 w-full flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition-all hover:bg-emerald-500 disabled:opacity-30 shadow-sm sm:w-auto"
-              >
-                {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
-              </button>
+              <HoverScale hoverScale={1.05} tapScale={0.95} className={`w-full sm:w-auto ${isPipelineRunning || !selectedPatientId ? 'pointer-events-none' : ''}`}>
+                <button
+                  onClick={() => triggerPipelineAnalysis(selectedPatientId)}
+                  disabled={isPipelineRunning || !selectedPatientId}
+                  className="flex h-11 w-full flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-30 shadow-sm"
+                >
+                  {isPipelineRunning ? "Running Swarm..." : "Analyze Dataset"}
+                </button>
+              </HoverScale>
             </div>
 
             {/* Custom Patient Trigger Button */}
-            <button
-              onClick={() => setIsCustomModalOpen(true)}
-              disabled={isPipelineRunning}
-              className="group flex h-11 flex-shrink-0 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/60 pl-2 pr-5 text-emerald-700 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-40"
-              title="Add Custom Patient Labs"
-            >
+            <HoverScale hoverScale={1.05} tapScale={0.95} className={isPipelineRunning ? 'pointer-events-none' : ''}>
+              <button
+                onClick={() => setIsCustomModalOpen(true)}
+                disabled={isPipelineRunning}
+                className="group flex h-11 flex-shrink-0 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/60 pl-2 pr-5 text-emerald-700 shadow-sm transition-colors hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-40"
+                title="Add Custom Patient Labs"
+              >
               <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white transition-colors group-hover:bg-emerald-500">
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
               </span>
               <span className="text-sm font-semibold">Custom Patient</span>
-            </button>
+              </button>
+            </HoverScale>
 
             {/* Desktop Info button */}
             <button

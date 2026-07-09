@@ -1,4 +1,6 @@
 import { Labs } from "@/types";
+import { StaggerContainer, StaggerItem } from "@/components/animations/Stagger";
+import { HoverScale } from "@/components/animations/HoverScale";
 
 interface LabRow { label: string; value: number; max: number; unit: string; decimals: number; normalLabel: string; }
 
@@ -71,7 +73,7 @@ interface LabsPanelProps { labs: Labs | null; isLoading: boolean; }
 export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
   if (isLoading && !labs) {
     return (
-      <div className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-all duration-200 hover:shadow-md">
+      <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:shadow-md">
         <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Labs</h3>
         <div className="space-y-3">
           {buildRows({ egfr: NaN, uacr_mg_g: NaN, creatinine_mg_dl: NaN, ldl_mg_dl: NaN, hdl_mg_dl: NaN, triglycerides_mg_dl: NaN } as Labs).map((row) => (
@@ -95,26 +97,26 @@ export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
             animation: shimmer-lab 1.4s infinite linear;
           }
         `}} />
-      </div>
+      </HoverScale>
     );
   }
 
   if (!labs) {
     return (
-      <div className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-all duration-200 hover:shadow-md flex flex-col items-center justify-center min-h-[180px] text-center gap-2">
+      <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:shadow-md flex flex-col items-center justify-center min-h-[180px] text-center gap-2">
         <svg className="h-9 w-9 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 20.25a48.25 48.25 0 01-8.135-.687c-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
         </svg>
         <p className="text-sm font-semibold text-slate-500">No labs to show yet</p>
         <p className="text-xs text-slate-400 max-w-[220px]">Run an analysis to pull this patient&apos;s lab panel in real time.</p>
-      </div>
+      </HoverScale>
     );
   }
 
   return (
-    <div className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+    <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Labs</h3>
-      <div className="space-y-3">
+      <StaggerContainer className="space-y-3">
         {buildRows(labs).map((row) => {
           const hasValue = typeof row.value === "number" && !isNaN(row.value);
           const valText = hasValue ? row.value.toFixed(row.decimals) : "--";
@@ -122,7 +124,7 @@ export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
           const severity = hasValue ? getSeverity(row.label, row.value) : "good";
           const style = severityStyles[severity];
           return (
-            <div key={row.label} className="rounded-xl px-2 pb-2 pt-1 transition-colors duration-150 hover:bg-slate-50/50">
+            <StaggerItem key={row.label} className="rounded-xl px-2 pb-2 pt-1 transition-colors duration-150 hover:bg-slate-50/50">
               <div className="mb-1 flex items-center justify-between text-sm">
                 <span className="flex items-center gap-1.5 font-semibold text-slate-700">
                   {hasValue && <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />}
@@ -136,10 +138,10 @@ export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
               <div className="h-2 rounded-full bg-slate-100">
                 <div className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${style.bar}`} style={{ width: `${pct}%` }} />
               </div>
-            </div>
+            </StaggerItem>
           );
         })}
-      </div>
-    </div>
+      </StaggerContainer>
+    </HoverScale>
   );
 }

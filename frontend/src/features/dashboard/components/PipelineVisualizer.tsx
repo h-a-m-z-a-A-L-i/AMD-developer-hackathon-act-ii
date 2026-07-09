@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { SpecialistResult, SynthesisReport } from "@/types";
+import { HoverScale } from "@/components/animations/HoverScale";
 
 function TypingText({ text = "", speed = 120, delay = 1200 }: { text: string; speed?: number; delay?: number }) {
   const [displayedText, setDisplayedText] = useState("");
@@ -76,7 +77,7 @@ export function PipelineVisualizer({
   };
 
   return (
-    <div className="rounded-[32px] border border-slate-200 bg-white p-5 md:p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+    <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-5 md:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-slate-700">Swarm Execution Workflow</h3>
@@ -241,6 +242,6 @@ export function PipelineVisualizer({
           animation: cursor-blink 0.8s infinite step-start;
         }
       `}} />
-    </div>
+    </HoverScale>
   );
 }

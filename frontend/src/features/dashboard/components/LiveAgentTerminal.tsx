@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { HoverScale } from "@/components/animations/HoverScale";
 
 interface LiveAgentTerminalProps {
   terminalLogs: string[];
@@ -27,7 +28,7 @@ export function LiveAgentTerminal({
   }, [terminalLogs, isLoading]);
 
   return (
-    <div className="flex h-auto flex-col gap-3 rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+    <HoverScale className="flex h-auto flex-col gap-3 rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold tracking-tight text-slate-800">
           Live Agent Terminal
@@ -100,6 +101,6 @@ export function LiveAgentTerminal({
           </div>
         </div>
       </div>
-    </div>
+    </HoverScale>
   );
 }

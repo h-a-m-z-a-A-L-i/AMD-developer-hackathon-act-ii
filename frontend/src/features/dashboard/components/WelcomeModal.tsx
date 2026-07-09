@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/theme/Logo";
 
 interface WelcomeModalProps {
@@ -50,15 +51,26 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
     if (isOpen) setActiveSlide(0);
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const isFirst = activeSlide === 0;
   const isLast = activeSlide === TOTAL_SLIDES - 1;
 
   return (
-    /* Overlay — bottom-sheet on mobile, centered dialog on sm+ */
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full sm:max-w-lg rounded-t-[32px] sm:rounded-[32px] border border-slate-200 bg-white shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[90vh] overflow-hidden">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ scale: 0.95, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="relative w-full sm:max-w-lg rounded-t-[32px] sm:rounded-[32px] border border-slate-200 bg-white shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[90vh] overflow-hidden"
+          >
 
         {/* Mobile drag handle */}
         <div className="flex justify-center pt-3 sm:hidden shrink-0">
@@ -380,7 +392,9 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
             )}
           </div>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
