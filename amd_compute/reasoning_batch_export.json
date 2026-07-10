@@ -1,0 +1,404 @@
+{
+  "provider": "featherless",
+  "n_patients": 8,
+  "records": [
+    {
+      "patient_id": "P93758",
+      "specialist": "renal",
+      "reasoning": "eGFR of 72.6 is below the 84.8 early-warning cutoff and UACR of 8.4 is above the 10.0 early-warning cutoff, giving a computed risk of 0.568.",
+      "risk_score": 0.5679472722559259,
+      "flag": true,
+      "thresholds_used": {
+        "eGFR cutoff": 84.8,
+        "UACR cutoff": 10.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93758",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 17.0 vs the 15.0 early-warning cutoff gives a computed risk of 0.574. A1C 6.5% vs the 6.0 early-warning cutoff gives a computed risk of 0.378.",
+      "risk_score": 0.5744424674809939,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 15.0,
+        "a1c_percent cutoff": 6.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93758",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 149.33333333333334 vs the 140.0 cutoff gives a computed risk of 0.603, Years with Diabetes 17.0 vs the 10.0 cutoff gives a computed risk of 0.779.",
+      "risk_score": 0.7790259618800691,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 140.0,
+        "years_with_diabetes cutoff": 10.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93758",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL of 354.0 vs the 180.0 early-warning cutoff gives a computed risk of 0.958, HDL of 49.0 vs the 50.0 early-warning cutoff gives a computed risk of 0.509, Triglycerides of 213.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.906.",
+      "risk_score": 0.9581934992874348,
+      "flag": true,
+      "thresholds_used": {
+        "ldl cutoff": 180.0,
+        "hdl cutoff": 50.0,
+        "triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93759",
+      "specialist": "renal",
+      "reasoning": "eGFR of 102.5 is below the 90.0 cutoff, UACR of 5.21 is above the 3.0 cutoff, and Creatinine of 0.77 is above the 0.8 upper limit. Computed risk scores are eGFR: 0.133, UACR: 0.472, Creatinine: 0.556.",
+      "risk_score": 0.5560138531827635,
+      "flag": true,
+      "thresholds_used": {
+        "eGFR cutoff": 90.0,
+        "UACR cutoff": 3.0,
+        "Creatinine upper limit": 0.8
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93759",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 5.0 vs the 10.0 early-warning cutoff gives a computed risk of -0.500. A1C 6.8% vs the 7.0 early-warning cutoff gives a computed risk of 0.067. Combined risk score is 0.343.",
+      "risk_score": 0.3429896358539973,
+      "flag": false,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 10.0,
+        "a1c_percent cutoff": 7.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93759",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 116.66666666666669 vs the 130.0 cutoff gives a computed risk of 0.354, Years with Diabetes 5.0 vs the 5.0 cutoff gives a computed risk of 0.500.",
+      "risk_score": 0.5,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 130.0,
+        "years_with_diabetes cutoff": 5.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93759",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL 25.0 vs the 130.0 early-warning cutoff gives a computed risk of 0.172, HDL 34.0 vs the 40.0 early-warning cutoff gives a computed risk of 0.611, Triglycerides 85.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.125.",
+      "risk_score": 0.6106391619810748,
+      "flag": true,
+      "thresholds_used": {
+        "ldl cutoff": 130.0,
+        "hdl cutoff": 40.0,
+        "triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93762",
+      "specialist": "renal",
+      "reasoning": "eGFR of 69.9 is below the 85.0 cutoff, UACR of 4.5 is above the 5.0 cutoff, and Creatinine of 0.87 is above the 1.0 upper limit. Combined risk score is 1.007.",
+      "risk_score": 1.0,
+      "flag": true,
+      "thresholds_used": {
+        "eGFR cutoff": 85.0,
+        "UACR cutoff": 5.0,
+        "Creatinine upper limit": 1.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93762",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 16.0 vs the 10.0 early-warning cutoff gives a computed risk of 0.600, and A1C 6.7% vs the 6.5% early-warning cutoff gives a computed risk of 0.133.",
+      "risk_score": 0.7464938458608928,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 10.0,
+        "a1c_percent cutoff": 6.5
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93762",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 128.0 vs the 130.0 cutoff gives a computed risk of 0.475, Years with Diabetes 16.0 vs the 10.0 cutoff gives a computed risk of 0.858.",
+      "risk_score": 0.8581487877126194,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 130.0,
+        "years_with_diabetes cutoff": 10.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93762",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL of 188.0 vs the 160.0 early-warning cutoff gives a computed risk of 0.779; HDL of 58.0 vs the 40.0 early-warning cutoff gives a computed risk of 0.038; Triglycerides of 154.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.536.",
+      "risk_score": 0.7790259618800691,
+      "flag": true,
+      "thresholds_used": {
+        "ldl cutoff": 160.0,
+        "hdl cutoff": 40.0,
+        "triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93812",
+      "specialist": "renal",
+      "reasoning": "eGFR of 86.6 is below the 90.0 cutoff, UACR of 6.3 is above the 3.0 cutoff, and Creatinine of 0.96 is above the 1.0 upper limit.",
+      "risk_score": 0.5127472285853657,
+      "flag": true,
+      "thresholds_used": {
+        "eGFR cutoff": 90.0,
+        "UACR cutoff": 3.0,
+        "Creatinine upper limit": 1.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93812",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 2.0 vs the 5.0 early-warning cutoff gives a computed risk of -0.600, and A1C 7.1% vs the 6.5 early-warning cutoff gives a computed risk of 0.171.",
+      "risk_score": 0.5765364741321432,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 5.0,
+        "a1c_percent cutoff": 6.5
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93812",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 143.33333333333334 vs the 140.0 cutoff and Years with Diabetes 2.0 vs the 5.0 cutoff give a computed risk of 0.315.",
+      "risk_score": 0.3153986122381324,
+      "flag": false,
+      "thresholds_used": {
+        "systolic_bp cutoff": 140.0,
+        "years_with_diabetes cutoff": 5.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P93812",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL 59.0 vs the 70.0 early-warning cutoff gives a computed risk contribution of 0.55. HDL 29.0 vs the 35.0 early-warning cutoff gives a computed risk contribution of 0.6. Triglycerides 228.0 vs the 150.0 early-warning cutoff gives a computed risk contribution of 1.56.",
+      "risk_score": 0.8356207915575938,
+      "flag": true,
+      "thresholds_used": {
+        "ldl cutoff": 70.0,
+        "hdl cutoff": 35.0,
+        "triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94007",
+      "specialist": "renal",
+      "reasoning": "eGFR of 69.8 is below the 85.0 cutoff I'm using for early renal stress, and UACR of 6.08 is above the 2.0 cutoff I'm using for early renal stress.",
+      "risk_score": 0.3700030905249973,
+      "flag": false,
+      "thresholds_used": {
+        "eGFR cutoff": 85.0,
+        "UACR cutoff": 2.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94007",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 19.0 vs the 15.0 early-warning cutoff gives a computed risk of 0.646. A1C 7.0% vs the 6.5 early-warning cutoff gives a computed risk of 0.818.",
+      "risk_score": 0.8175743257079459,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 15.0,
+        "a1c_percent cutoff": 6.5
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94007",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 128.0 vs the 130.0 cutoff gives a computed risk of 0.475, Years with Diabetes 19.0 vs the 15.0 cutoff gives a computed risk of 0.769.",
+      "risk_score": 0.7685246399055717,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 130.0,
+        "years_with_diabetes cutoff": 15.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94007",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL of 86.0 vs the 100.0 early-warning cutoff gives a computed risk of 0.377, HDL of 49.0 vs the 40.0 early-warning cutoff gives a computed risk of 0.165, Triglycerides of 71.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.055.",
+      "risk_score": 0.19893286990812586,
+      "flag": false,
+      "thresholds_used": {
+        "ldl cutoff": 100.0,
+        "hdl cutoff": 40.0,
+        "triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94043",
+      "specialist": "renal",
+      "reasoning": "eGFR of 97.7 is below the 90.0 cutoff, UACR of 45.82 is above the 30.0 cutoff, and Creatinine of 0.83 is above the 0.6 upper limit. Combined risk score is -0.095.",
+      "risk_score": 0.0,
+      "flag": false,
+      "thresholds_used": {
+        "eGFR cutoff": 90.0,
+        "UACR cutoff": 30.0,
+        "Creatinine upper limit": 1.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94043",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 10.0 vs the 8.0 early-warning cutoff gives a computed risk of 0.646. A1C 6.9% vs the 6.5 early-warning cutoff gives a computed risk of 0.769.",
+      "risk_score": 0.7685246399055718,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 8.0,
+        "a1c_percent cutoff": 6.5
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94043",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 131.33333333333334 vs the 130.0 cutoff gives a computed risk of 0.517, and Years with Diabetes 10.0 vs the 5.0 cutoff gives a computed risk of 0.818. The highest risk score is used for the final score.",
+      "risk_score": 0.8175743257079459,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 130.0,
+        "years_with_diabetes cutoff": 5.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94043",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL of 48.0 vs the 100.0 early-warning cutoff gives a computed risk of 0.133; HDL of 41.0 vs the 40.0 early-warning cutoff gives a computed risk of 0.455; Triglycerides of 56.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.156.",
+      "risk_score": 0.2479816365826655,
+      "flag": false,
+      "thresholds_used": {
+        "ldl cutoff": 100.0,
+        "hdl cutoff": 40.0,
+        "triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94069",
+      "specialist": "renal",
+      "reasoning": "eGFR of 99.2 is below the 90.0 early-warning cutoff giving a computed risk of 0.481, UACR of 12.24 is above the 10.0 early-warning cutoff giving a computed risk of 0.458, Creatinine of 0.84 is above the 0.30000000000000004 early-warning cutoff giving a computed risk of 0.599.",
+      "risk_score": 0.5986875954676328,
+      "flag": true,
+      "thresholds_used": {
+        "eGFR cutoff": 90.0,
+        "UACR cutoff": 10.0,
+        "Creatinine cutoff": 1.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94069",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 8.0 vs the 5.0 early-warning cutoff gives a computed risk contribution of 0.600. A1C 7.0 vs the 6.5 early-warning cutoff gives a computed risk contribution of 0.333. Combined risk score is 0.802.",
+      "risk_score": 0.8021837391227805,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 5.0,
+        "a1c_percent cutoff": 6.5
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94069",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 128.0 vs the 130.0 cutoff gives a computed risk of 0.475, Years with Diabetes 8.0 vs the 7.0 cutoff gives a computed risk of 0.553.",
+      "risk_score": 0.5533673371752069,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 130.0,
+        "years_with_diabetes cutoff": 7.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94069",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL 166.0 vs the 130.0 early-warning cutoff gives a computed risk of 0.716, HDL 41.0 vs the 45.0 early-warning cutoff gives a computed risk of 0.572, Triglycerides 155.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.545.",
+      "risk_score": 0.7162048720974213,
+      "flag": true,
+      "thresholds_used": {
+        "LDL cutoff": 130.0,
+        "HDL cutoff": 45.0,
+        "Triglycerides cutoff": 150.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94081",
+      "specialist": "renal",
+      "reasoning": "eGFR of 73.4 is below the 85.0 cutoff I'm using for early renal stress, and UACR of 10.85 is above the 5.0 cutoff I'm using for early renal stress.",
+      "risk_score": 0.4005935642743134,
+      "flag": true,
+      "thresholds_used": {
+        "eGFR cutoff": 85.0,
+        "UACR cutoff": 5.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94081",
+      "specialist": "neuropathy",
+      "reasoning": "Years with diabetes 1.0 vs the 2.0 early-warning cutoff gives a computed risk of 0.321. A1C 6.8% vs the 6.5 early-warning cutoff gives a computed risk of 0.711.",
+      "risk_score": 0.7109493782176818,
+      "flag": true,
+      "thresholds_used": {
+        "years_with_diabetes cutoff": 2.0,
+        "a1c_percent cutoff": 6.5
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94081",
+      "specialist": "retinal",
+      "reasoning": "Systolic BP 155.0 vs the 140.0 cutoff gives a computed risk of 0.711, and Years With Diabetes 1.0 vs the 5.0 cutoff gives a computed risk of 0.192.",
+      "risk_score": 0.7109493782176819,
+      "flag": true,
+      "thresholds_used": {
+        "systolic_bp cutoff": 140.0,
+        "years_with_diabetes cutoff": 5.0
+      },
+      "provider": "featherless"
+    },
+    {
+      "patient_id": "P94081",
+      "specialist": "cardiovascular",
+      "reasoning": "LDL 100.0 vs the 100.0 early-warning cutoff gives a computed risk of 0.500. HDL 70.0 vs the 40.0 early-warning cutoff gives a computed risk of 0.142. Triglycerides 169.0 vs the 150.0 early-warning cutoff gives a computed risk of 0.665. eGFR 73.4 vs the 80.0 early-warning cutoff gives a computed risk of 0.644. The maximum risk score is used for the final risk assessment.",
+      "risk_score": 0.6646307678841433,
+      "flag": true,
+      "thresholds_used": {
+        "LDL cutoff": 100.0,
+        "HDL cutoff": 40.0,
+        "Triglycerides cutoff": 150.0,
+        "eGFR cutoff": 80.0
+      },
+      "provider": "featherless"
+    }
+  ]
+}

@@ -24,6 +24,16 @@ model** directly on the AMD GPU to do two things the live path doesn't do:
    is it internally consistent with the numeric risk_score). This gives the team an
    automated, repeatable QA signal that doesn't depend on the live API at demo time.
 
+   The judge model is switchable (`JUDGE_MODEL` in the notebook): set it to any
+   locally-pullable Ollama model — `'llama3'` or `'gemma2'` (Gemma, run locally) —
+   and it's pulled and run directly on the AMD instance's GPU via Ollama. No
+   external/hosted API is involved either way, so every run is genuine Track 3
+   compute. Each run writes its own `outputs/reasoning_eval_report_<model>.json`
+   (e.g. `reasoning_eval_report_llama3.json`, `reasoning_eval_report_gemma2.json`)
+   instead of overwriting a single file, so you can run the cell once per model and
+   commit both — the dashboard's AMD Compute panel then lets you toggle between
+   whichever ones actually exist.
+
 Both tasks are genuinely useful, genuinely run on AMD hardware, and are genuinely
 separate from the live agent — they're not a thin wrapper around Featherless.
 
@@ -36,7 +46,9 @@ separate from the live agent — they're not a thin wrapper around Featherless.
 - All artifacts the notebook produces are written to `amd_compute/outputs/` and
   committed to the repo:
   - `outputs/patient_embeddings.npy`, `outputs/patient_index.json`
-  - `outputs/reasoning_eval_report.json` (per-sample scores + aggregate summary)
+  - `outputs/reasoning_eval_report_<model>.json` (one per judge model run, e.g.
+    `reasoning_eval_report_llama3.json` / `reasoning_eval_report_gemma2.json` —
+    per-sample scores + aggregate summary)
   - `outputs/run_log.txt` (stdout capture of the notebook run, including the
     device-info cell output and timing for each stage)
 - The video demo should show the notebook actively running on the AMD Developer
@@ -49,6 +61,23 @@ separate from the live agent — they're not a thin wrapper around Featherless.
 - `outputs/` — committed artifacts from the last notebook run (logs + results)
 - `requirements.txt` — Python deps for the AMD notebook environment (separate from
   `backend/requirements.txt` since this runs in a different environment)
+
+## Dashboard integration
+
+**Removed.** This used to have a dedicated **AMD Compute** panel in the dashboard
+that read the notebook's outputs live off disk via two backend endpoints. That
+panel added little value beyond the live specialist-screening pipeline and has
+been removed from the frontend, backend (`backend/main.py`), and the notebook
+relay (`amd_compute/amd_notebook_relay_server.ipynb`) to keep the codebase
+lean. The corresponding Next.js proxy routes
+(`frontend/src/app/api/amd-compute/`) have been renamed to `*.deprecated` so
+they no longer register as live routes.
+
+This notebook and its `outputs/` artifacts still exist purely as a standalone
+Track 3 compute demonstration (see "How judges can verify AMD usage" above) -
+run it and commit `outputs/` if your hackathon's judging criteria specifically
+reward this kind of extra AMD GPU usage; otherwise it's optional and doesn't
+affect the live product at all.
 
 ## Relationship to the live backend
 
