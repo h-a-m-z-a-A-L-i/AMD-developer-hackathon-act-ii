@@ -178,6 +178,12 @@ body {
 .dark .text-red-600,
 .dark .text-red-700 { color: #f87171 !important; }
 
+/* LabsPanel's cooler severity palette (teal/yellow) — same brightening
+   treatment as emerald/amber/rose above, so the lab values stay legible
+   on the dark navy card background instead of reading as muddy/low-contrast. */
+.dark .text-teal-600 { color: #2dd4bf !important; }
+.dark .text-yellow-600 { color: #facc15 !important; }
+
 /* Terminal / brief panels already use slate-900/950 + emerald text —
    they stay visually consistent between light & dark automatically. */
 

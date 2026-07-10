@@ -107,6 +107,7 @@ export function SwarmDiagnosticsTabs({
     agents_run: 5,
     llm_calls_made: specialists.filter(s => s.used_llm).length + (synthesis.used_llm ? 1 : 0),
     provider: (synthesis.used_llm ? (llmStatus as any) : null),
+    provider_detail: (synthesis.used_llm ? llmStatus : null),
   } : null);
 
   return (
@@ -128,9 +129,9 @@ export function SwarmDiagnosticsTabs({
         ))}
       </div>
 
-      <div className="min-h-[400px]">
+      <div className="min-h-[400px] min-w-0">
         {activeTab === "overview" && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6 animate-fade-in min-w-0">
             <PipelineVisualizer
               specialists={specialists}
               synthesis={synthesis}
@@ -138,21 +139,23 @@ export function SwarmDiagnosticsTabs({
               patientId={patientId}
             />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-              <HoverScale className="lg:col-span-7 xl:col-span-8 rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
+              <HoverScale className={`min-h-[620px] rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 overflow-hidden transition-colors duration-200 hover:border-slate-300 hover:shadow-md ${isLoading ? "lg:col-span-7 xl:col-span-8" : "lg:col-span-12"}`}>
                 <OrganRiskMap
                   specialists={specialists}
                   synthesis={synthesis}
                   isLoading={isLoading}
                 />
               </HoverScale>
-              <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-3">
-                <SynthesisCallout
-                  specialists={specialists}
-                  synthesis={synthesis}
-                  isLoading={isLoading}
-                />
-                <ClinicalWarningLegend />
-              </div>
+              {isLoading && (
+                <div className="lg:col-span-5 xl:col-span-4 flex flex-col justify-center gap-3">
+                  <SynthesisCallout
+                    specialists={specialists}
+                    synthesis={synthesis}
+                    isLoading={isLoading}
+                  />
+                  <ClinicalWarningLegend />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -425,7 +428,7 @@ export function SwarmDiagnosticsTabs({
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Latency & API Call Audits</p>
                   </div>
                   <span className="rounded-full bg-sky-50 border border-sky-100/50 px-3 py-1 text-xs font-semibold text-sky-700 font-mono">
-                    Provider: {activeBenchmark.provider || "None (LLM Unreachable)"}
+                    Provider: {activeBenchmark.provider_detail || activeBenchmark.provider || "None (LLM Unreachable)"}
                   </span>
                 </div>
 

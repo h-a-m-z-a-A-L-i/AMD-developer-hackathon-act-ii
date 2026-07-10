@@ -22,7 +22,7 @@ const specialistLabels: Record<string, string> = {
   retinal: "Retina (Retinopathy)",
   renal: "Kidneys (Nephropathy)",
   neuropathy: "Nerves (Neuropathy)",
-  cardiovascular: "Heart & Vessels",
+  cardiovascular: "Heart & Vessels (Cardiology)",
 };
 
 // ---------------------------------------------------------------------
@@ -77,7 +77,20 @@ function limbEndpoint(
   return [px + length * Math.sin(side * angle), py - length * Math.cos(side * angle), pz];
 }
 
-const RIG_Y_OFFSET = -0.24;
+// Vertical re-centering offset, derived from the rig constants above
+// (head top down to the foot-cap bottom) rather than hand-picked, so the
+// figure stays centered on the camera/OrbitControls target even as the
+// rig's proportions change. This used to be a hardcoded -0.24, a guess
+// that was never recalculated after later edits reshaped the rig (e.g.
+// the pelvis capsule removal above) - it left the true vertical midpoint
+// about 0.17 units below where the camera was actually centered, which
+// pushed the whole figure down in frame and crowded the legs/feet and
+// the scan ring underneath them against - and often past - the bottom
+// edge of the panel. Computing it from the same geometry used to place
+// everything else keeps it correct by construction.
+const FIGURE_TOP_Y = HEAD_Y + HEAD_R;
+const FIGURE_BOTTOM_Y = HIP_Y - LEG_LEN * Math.cos(LEG_ANGLE) - LEG_R;
+const RIG_Y_OFFSET = -(FIGURE_TOP_Y + FIGURE_BOTTOM_Y) / 2;
 
 // ---------------------------------------------------------------------
 // Hotspot placement. Every marker is positioned INSIDE the translucent

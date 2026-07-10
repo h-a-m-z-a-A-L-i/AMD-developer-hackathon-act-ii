@@ -14,15 +14,26 @@ interface LabRow { label: string; value: number; max: number; unit: string; deci
 // for each metric (not a new clinical claim, just more headroom on the bar),
 // so "good" values actually look like they're using a small fraction of the
 // bar instead of nearly filling it.
-function buildRows(labs: Labs): LabRow[] {
-  return [
+//
+// HbA1c and Systolic BP were previously duplicated up in the page header
+// (PatientOverviewHeader) AND partially here (eGFR/UACR only) - two
+// differently-styled readouts of overlapping data. Consolidated: this panel
+// is now the single source of truth for every lab/vital, header included.
+function buildRows(labs: Labs, a1cPercent?: number | null): LabRow[] {
+  const rows: LabRow[] = [];
+  if (typeof a1cPercent === "number") {
+    rows.push({ label: "HbA1c", value: a1cPercent, max: 14, unit: "%", decimals: 1, normalLabel: "Controlled ≤ 7.0%" });
+  }
+  rows.push(
     { label: "eGFR", value: labs.egfr, max: 120, unit: "", decimals: 1, normalLabel: "Normal \u2265 84.8" },
     { label: "UACR", value: labs.uacr_mg_g, max: 300, unit: "mg/g", decimals: 1, normalLabel: "Normal \u2264 15.5 mg/g" },
     { label: "Creatinine", value: labs.creatinine_mg_dl, max: 3, unit: "mg/dL", decimals: 2, normalLabel: "Normal \u2264 1.1 mg/dL" },
     { label: "LDL cholesterol", value: labs.ldl_mg_dl, max: 300, unit: "mg/dL", decimals: 0, normalLabel: "Normal < 100 mg/dL" },
     { label: "HDL cholesterol", value: labs.hdl_mg_dl, max: 100, unit: "mg/dL", decimals: 0, normalLabel: "Normal \u2265 50 mg/dL" },
     { label: "Triglycerides", value: labs.triglycerides_mg_dl, max: 500, unit: "mg/dL", decimals: 0, normalLabel: "Normal < 150 mg/dL" },
-  ];
+    { label: "Systolic BP", value: labs.systolic_bp, max: 200, unit: "mmHg", decimals: 0, normalLabel: "Normal \u2264 130 mmHg" },
+  );
+  return rows;
 }
 
 type Severity = "good" | "moderate" | "high";
@@ -33,6 +44,10 @@ type Severity = "good" | "moderate" | "high";
 // risk instead of making the reader parse every number.
 function getSeverity(label: string, value: number): Severity {
   switch (label) {
+    case "HbA1c":
+      if (value <= 7.0) return "good";
+      if (value <= 8.5) return "moderate";
+      return "high";
     case "eGFR":
       if (value >= 84.8) return "good";
       if (value >= 60) return "moderate";
@@ -57,26 +72,36 @@ function getSeverity(label: string, value: number): Severity {
       if (value < 150) return "good";
       if (value < 200) return "moderate";
       return "high";
+    case "Systolic BP":
+      if (value <= 130) return "good";
+      if (value <= 140) return "moderate";
+      return "high";
     default:
       return "good";
   }
 }
 
+// Cooler-toned severity palette: teal instead of emerald (adds a blue
+// undertone to "good"), yellow instead of amber (drops the orange cast),
+// and a deepened rose instead of the brighter rose-400/600 (reads as a
+// richer wine-red rather than a bright/neon pink-red). Keeps the same
+// red/yellow/green semantics, just shifted toward the app's cyan-leaning
+// dark theme instead of the warmer default Tailwind shades.
 const severityStyles: Record<Severity, { bar: string; text: string; dot: string }> = {
-  good: { bar: "from-emerald-400 to-emerald-600", text: "text-emerald-600", dot: "bg-emerald-500" },
-  moderate: { bar: "from-amber-400 to-amber-600", text: "text-amber-600", dot: "bg-amber-500" },
-  high: { bar: "from-rose-400 to-rose-600", text: "text-rose-600", dot: "bg-rose-500" },
+  good: { bar: "from-teal-400 to-teal-600", text: "text-teal-600", dot: "bg-teal-500" },
+  moderate: { bar: "from-yellow-400 to-yellow-600", text: "text-yellow-600", dot: "bg-yellow-500" },
+  high: { bar: "from-rose-500 to-rose-700", text: "text-rose-600", dot: "bg-rose-500" },
 };
 
-interface LabsPanelProps { labs: Labs | null; isLoading: boolean; }
+interface LabsPanelProps { labs: Labs | null; isLoading: boolean; a1cPercent?: number | null; }
 
-export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
+export function LabsPanel({ labs, isLoading, a1cPercent }: LabsPanelProps) {
   if (isLoading && !labs) {
     return (
       <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:shadow-md">
         <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Labs</h3>
         <div className="space-y-3">
-          {buildRows({ egfr: NaN, uacr_mg_g: NaN, creatinine_mg_dl: NaN, ldl_mg_dl: NaN, hdl_mg_dl: NaN, triglycerides_mg_dl: NaN } as Labs).map((row) => (
+          {buildRows({ egfr: NaN, uacr_mg_g: NaN, creatinine_mg_dl: NaN, ldl_mg_dl: NaN, hdl_mg_dl: NaN, triglycerides_mg_dl: NaN, systolic_bp: NaN } as Labs, a1cPercent).map((row) => (
             <div key={row.label} className="rounded-xl p-2">
               <div className="mb-1.5 flex justify-between text-sm">
                 <span className="font-semibold text-slate-400">{row.label}</span>
@@ -117,7 +142,7 @@ export function LabsPanel({ labs, isLoading }: LabsPanelProps) {
     <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-3 sm:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Labs</h3>
       <StaggerContainer className="space-y-3">
-        {buildRows(labs).map((row) => {
+        {buildRows(labs, a1cPercent).map((row) => {
           const hasValue = typeof row.value === "number" && !isNaN(row.value);
           const valText = hasValue ? row.value.toFixed(row.decimals) : "--";
           const pct = hasValue ? Math.max(0, Math.min(100, (row.value / row.max) * 100)) : 0;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PatientOverviewHeader } from "@/features/dashboard/components/PatientOverviewHeader";
 import { LabsPanel } from "@/features/dashboard/components/LabsPanel";
 import { LiveAgentTerminal } from "@/features/dashboard/components/LiveAgentTerminal";
@@ -12,6 +12,7 @@ import { ToastStack, ToastItem } from "@/features/dashboard/components/ToastStac
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Logo } from "@/components/theme/Logo";
 import { RecordSelect } from "@/features/dashboard/components/RecordSelect";
+import { ProviderSwitcher } from "@/features/dashboard/components/ProviderSwitcher";
 import { fetchBrief } from "@/lib/generateBrief";
 import { HoverScale } from "@/components/animations/HoverScale";
 import type {
@@ -41,6 +42,15 @@ const specialistFriendlyNames: Record<string, string> = {
 export default function DashboardPage() {
   const [patients, setPatients] = useState<PatientDropdownItem[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string>("");
+
+  const refreshStatusRef = useRef<() => void>(() => {});
+
+  // Invalidates any in-flight manual "Generate Discovery Brief" request when
+  // a new analysis starts or the patient changes. Without this, a slow brief
+  // request could resolve AFTER the user switched patients/reran, silently
+  // overwriting the (correctly cleared) brief state with stale text from the
+  // previous patient.
+  const briefRequestIdRef = useRef(0);
 
   const [demographics, setDemographics] = useState<Demographics | null>(null);
   const [labs, setLabs] = useState<Labs | null>(null);
@@ -106,10 +116,10 @@ export default function DashboardPage() {
 
     async function loadStatus() {
       try {
-        const res = await fetch("/api/status");
+        const res = await fetch("/api/status", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          setLlmStatus(data.llm_status);
+          setLlmStatus(data.provider_detail || data.llm_status);
           setLlmModel(data.model);
         } else {
           setLlmStatus("offline");
@@ -127,6 +137,7 @@ export default function DashboardPage() {
 
     loadPatients();
     loadStatus();
+    refreshStatusRef.current = loadStatus;
   }, []);
 
   // Update demographics preview when patient selection changes
@@ -146,6 +157,8 @@ export default function DashboardPage() {
         setBenchmark(null);
         setTerminalLogs([]);
         setClinicalBrief("");
+        setIsBriefLoading(false);
+        briefRequestIdRef.current += 1; // invalidate any in-flight brief request
         setCustomPatientId(null); // switching to dataset — clear any active custom session
       }
     }
@@ -164,14 +177,18 @@ export default function DashboardPage() {
     setTerminalLogs([]);
     setClinicalBrief("");
     setIsBriefLoading(false);
+    briefRequestIdRef.current += 1; // invalidate any in-flight brief request
     setToasts([]);
     if (!customData) {
       // Switching to a dataset patient — clear any lingering custom session
       setCustomPatientId(null);
     }
 
-    // Local accumulators — used to generate the brief at pipeline_complete
-    // without relying on stale React state captured in the closure.
+    // Local accumulators — kept for demographics/labs bookkeeping during the
+    // stream (still needed elsewhere in this handler). No longer used to
+    // auto-fire a brief request; brief generation is now manual (see
+    // handleGenerateBrief), triggered from the ReportExport button using
+    // React state directly once the pipeline has actually finished.
     let localSpecialists: any[] = [];
     let localSynthesis: any = null;
     let localLabs: Record<string, number> = {};
@@ -228,7 +245,7 @@ export default function DashboardPage() {
 
       if (event.stage === "pipeline_start") {
         const providerLabel = event.provider
-          ? `LLM sandbox (${event.provider})`
+          ? `LLM sandbox (${event.provider_detail || event.provider})`
           : "LLM offline - no fallback, analysis will be reported unavailable";
         setTerminalLogs((prev) => [
           ...prev,
@@ -257,31 +274,19 @@ export default function DashboardPage() {
           agents_run: event.agents_run,
           llm_calls_made: event.llm_calls_made,
           provider: event.provider,
+          provider_detail: event.provider_detail,
         });
 
         setTerminalLogs((prev) => [
           ...prev,
           `> [SYSTEM] Swarm pipeline execution finished in ${event.total_duration_ms} ms.`,
-          `> [SYSTEM] Provider mode: ${event.provider || "LLM offline (no fallback)"}.`,
+          `> [SYSTEM] Provider mode: ${event.provider_detail || event.provider || "LLM offline (no fallback)"}.`,
         ]);
 
         es.close();
         setIsPipelineRunning(false);
-
-        // Fetch the Discovery Brief from the real backend report agent
-        // (LLM-generated, honest "unavailable" on failure — no client-side
-        // template fallback).
-        if (localPatientId && localDemographics && localSynthesis && localSpecialists.length > 0) {
-          setIsBriefLoading(true);
-          fetchBrief(localPatientId, localDemographics, localLabs, localSpecialists, localSynthesis)
-            .then((brief) => setClinicalBrief(brief))
-            .catch((err) => {
-              setClinicalBrief(
-                `Discovery Brief unavailable for patient ${localPatientId}: ${err.message}. No report was generated - this is not a placeholder or partial brief.`
-              );
-            })
-            .finally(() => setIsBriefLoading(false));
-        }
+        // Discovery Brief generation is manual now — see handleGenerateBrief,
+        // wired to the "Generate Discovery Brief" button in ReportExport.
         return;
       }
 
@@ -364,6 +369,38 @@ export default function DashboardPage() {
       setErrorMessage("Streaming execution connection interrupted.");
       setIsPipelineRunning(false);
     };
+  }
+
+  // Manually triggered from the "Generate Discovery Brief" button in
+  // ReportExport. Uses current React state (not stream-local accumulators)
+  // since by the time this can be clicked, the pipeline has already finished
+  // and specialists/synthesis/demographics/labs are stable. Guards against
+  // the stale-overwrite bug via briefRequestIdRef: if the patient changes or
+  // a new run starts while this request is in flight, the request's id no
+  // longer matches the current one and its result is discarded instead of
+  // being written into state.
+  async function handleGenerateBrief() {
+    if (!displayPatientId || !demographics || !synthesis || specialists.length === 0) return;
+
+    const requestId = ++briefRequestIdRef.current;
+    setIsBriefLoading(true);
+
+    try {
+      const brief = await fetchBrief(displayPatientId, demographics, labs || {}, specialists, synthesis);
+      if (briefRequestIdRef.current === requestId) {
+        setClinicalBrief(brief);
+      }
+    } catch (err: any) {
+      if (briefRequestIdRef.current === requestId) {
+        setClinicalBrief(
+          `Discovery Brief unavailable for patient ${displayPatientId}: ${err.message}. No report was generated - this is not a placeholder or partial brief.`
+        );
+      }
+    } finally {
+      if (briefRequestIdRef.current === requestId) {
+        setIsBriefLoading(false);
+      }
+    }
   }
 
   const handleCustomPatientSubmit = async (data: CustomPatientInput) => {
@@ -513,6 +550,12 @@ export default function DashboardPage() {
               </svg>
             </button>
 
+            {/* Provider switcher */}
+            <ProviderSwitcher
+              disabled={isPipelineRunning}
+              onProviderChanged={() => refreshStatusRef.current()}
+            />
+
             {/* Dark mode toggle */}
             <ThemeToggle />
           </div>
@@ -556,7 +599,7 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-3 lg:grid-cols-12">
 
         {/* Left Column: Diagnostics Tabs Panels */}
-        <div className="lg:col-span-9 flex flex-col gap-3">
+        <div className="lg:col-span-9 flex min-w-0 flex-col gap-3">
           <SwarmDiagnosticsTabs
             specialists={specialists}
             synthesis={synthesis}
@@ -569,8 +612,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Column: Console Output & Lab Panels */}
-        <div className="lg:col-span-3 flex flex-col gap-3 lg:pt-[70px]">
-          <LabsPanel labs={labs} isLoading={isPipelineRunning} />
+        <div className="lg:col-span-3 flex flex-col gap-3 lg:pt-[58px]">
+          <LabsPanel labs={labs} isLoading={isPipelineRunning} a1cPercent={demographics?.a1c_percent ?? null} />
           <LiveAgentTerminal
             terminalLogs={terminalLogs}
             isLoading={isPipelineRunning}
@@ -589,6 +632,8 @@ export default function DashboardPage() {
             synthesis={synthesis}
             clinicalBrief={clinicalBrief}
             isBriefLoading={isBriefLoading}
+            canGenerateBrief={!isPipelineRunning && !!synthesis && specialists.length > 0}
+            onGenerateBrief={handleGenerateBrief}
           />
         </div>
 

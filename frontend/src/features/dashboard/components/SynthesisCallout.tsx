@@ -11,17 +11,17 @@ export function SynthesisCallout({ specialists, synthesis, isLoading }: Synthesi
   // Bridge state — specialists have started reporting but synthesis hasn't landed yet.
   if (isLoading && !synthesis && specialists.length > 0) {
     return (
-      <HoverScale className="rounded-[32px] border border-sky-100 bg-sky-50/60 p-4 sm:p-5 lg:p-4">
+      <HoverScale className="rounded-[32px] border border-emerald-100 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-900/20 p-4 sm:p-5 lg:p-4">
         <div className="flex items-center gap-2.5">
-          <span className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-sky-500 border-t-transparent" />
-          <p className="text-sm font-semibold text-sky-700">Synthesizing recommendation&hellip;</p>
+          <span className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Synthesizing recommendation&hellip;</p>
         </div>
         <p className="mt-2 text-xs text-slate-400">
           {specialists.length} of 4 specialists reported &middot; combining findings into one referral recommendation.
         </p>
         <div className="mt-3 space-y-1.5">
-          <div className="h-2.5 w-full rounded-full bg-sky-100/80 animate-pulse" />
-          <div className="h-2.5 w-2/3 rounded-full bg-sky-100/80 animate-pulse" />
+          <div className="h-2.5 w-full rounded-full bg-emerald-100/80 dark:bg-emerald-800/40 animate-pulse" />
+          <div className="h-2.5 w-2/3 rounded-full bg-emerald-100/80 dark:bg-emerald-800/40 animate-pulse" />
         </div>
       </HoverScale>
     );

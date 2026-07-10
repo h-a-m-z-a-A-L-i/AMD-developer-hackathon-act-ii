@@ -76,6 +76,18 @@ export function PipelineVisualizer({
     return "bg-emerald-50 border-emerald-300 text-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.15)]";
   };
 
+  // Same severity bands as getRiskColor/OrganRiskMap, isolated to just the
+  // icon's stroke color so the flagged-warning triangle matches the same
+  // red/amber/emerald tier as the risk cards below it, instead of every
+  // flagged specialist rendering the same hardcoded rose triangle even when
+  // its actual score only lands in the amber "Elevated - Monitor" band.
+  const getFlagIconColor = (score: number | null) => {
+    if (score === null) return "text-slate-400";
+    if (score >= 0.7) return "text-rose-500";
+    if (score >= 0.4) return "text-amber-500";
+    return "text-emerald-500";
+  };
+
   return (
     <HoverScale className="rounded-[32px] border border-slate-200 bg-white p-5 md:p-4 transition-colors duration-200 hover:border-slate-300 hover:shadow-md">
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
@@ -105,7 +117,9 @@ export function PipelineVisualizer({
         {/* Node 1: Patient Labs */}
         <div className="flex flex-col items-center z-10 w-full md:w-auto">
           <div className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-            hasLabs
+            pipelineFinished
+              ? "bg-emerald-50 border-emerald-400 text-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+              : hasLabs
               ? "bg-sky-50 border-sky-400 text-sky-600 shadow-[0_0_15px_rgba(56,189,248,0.2)]"
               : "bg-slate-50 border-slate-200 text-slate-400"
           }`}>
@@ -121,6 +135,9 @@ export function PipelineVisualizer({
         <div className="hidden md:block flex-1 h-[2px] bg-slate-100 min-w-[20px] relative overflow-hidden">
           {isLoading && !allSpecialistsDone && (
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-shimmer-connector" />
+          )}
+          {pipelineFinished && (
+            <div className="absolute inset-0 bg-emerald-400" />
           )}
         </div>
 
@@ -150,7 +167,7 @@ export function PipelineVisualizer({
                       !spec.available || spec.risk_score === null ? (
                         <span className="text-[9px] font-bold text-slate-400">N/A</span>
                       ) : spec.flag ? (
-                        <svg className="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className={`h-6 w-6 ${getFlagIconColor(spec.risk_score)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                       ) : (
@@ -176,12 +193,17 @@ export function PipelineVisualizer({
           {isLoading && allSpecialistsDone && !synthesisDone && (
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-sky-400 to-transparent animate-shimmer-connector" />
           )}
+          {pipelineFinished && (
+            <div className="absolute inset-0 bg-emerald-400" />
+          )}
         </div>
 
         {/* Node 3: Synthesis Agent */}
         <div className="flex flex-col items-center z-10 w-full md:w-auto">
           <div className={`flex h-14 w-14 items-center justify-center rounded-full border-2 transition-all duration-300 ${
-            synthesisDone
+            pipelineFinished
+              ? "bg-emerald-50 border-emerald-400 text-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+              : synthesisDone
               ? "bg-sky-50 border-sky-400 text-sky-600 shadow-[0_0_15px_rgba(56,189,248,0.2)]"
               : isLoading && allSpecialistsDone
               ? "bg-slate-50 border-sky-400 text-sky-400"
@@ -205,8 +227,11 @@ export function PipelineVisualizer({
 
         {/* Connector 3 */}
         <div className="hidden md:block flex-1 h-[2px] bg-slate-100 min-w-[20px] relative overflow-hidden">
-          {pipelineFinished && (
+          {isLoading && synthesisDone && (
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-shimmer-connector" />
+          )}
+          {pipelineFinished && (
+            <div className="absolute inset-0 bg-emerald-400" />
           )}
         </div>
 

@@ -12,7 +12,7 @@ export interface Demographics {
   age: number;
   sex: string;
   a1c_percent: number;
-  years_with_diabetes: number; // was already returned by backend, just wasn't typed
+  years_with_diabetes: number;
 }
 
 export interface Labs {
@@ -52,7 +52,8 @@ export interface BenchmarkSummary {
   total_duration_ms: number;
   agents_run: number;              // always 5 (4 specialists + synthesis)
   llm_calls_made: number;          // includes retries
-  provider: "fireworks" | "featherless" | null;
+  provider: "fireworks" | "featherless" | "amd_notebook_qwen" | "amd_notebook_gemma" | null;
+  provider_detail?: string | null; // human-readable route, e.g. "featherless (direct)" or "qwen2.5-coder:7b (AMD notebook, local Ollama on-GPU)"
 }
 
 export interface PatientAnalysisResponse {
@@ -61,10 +62,10 @@ export interface PatientAnalysisResponse {
   labs: Labs;
   specialists: SpecialistResult[];
   synthesis: SynthesisReport;
-  benchmark?: BenchmarkSummary;     // NEW — present on the blocking POST /api/analyze response
+  benchmark?: BenchmarkSummary;     // present on the blocking POST /api/analyze response
 }
 
-// NEW — one SSE event on the streaming endpoint
+// One SSE event on the streaming endpoint
 export interface StreamEvent {
   stage: "renal" | "neuropathy" | "retinal" | "cardiovascular" | "synthesis" | "pipeline_complete";
   data?: { [resultKey: string]: SpecialistResult | SynthesisReport }; // absent on pipeline_complete
@@ -73,7 +74,8 @@ export interface StreamEvent {
   total_duration_ms?: number;
   agents_run?: number;
   llm_calls_made?: number;
-  provider?: "fireworks" | "featherless" | null;
+  provider?: "fireworks" | "featherless" | "amd_notebook_qwen" | "amd_notebook_gemma" | null;
+  provider_detail?: string | null;
 }
 
 export interface CustomPatientInput {
@@ -89,4 +91,49 @@ export interface CustomPatientInput {
   hdl_mg_dl: number;
   triglycerides_mg_dl: number;
   systolic_bp: number;
+}
+
+// Manual LLM provider switcher
+export interface ProviderOption {
+  id: "featherless" | "fireworks" | "amd_notebook_qwen" | "amd_notebook_gemma";
+  label: string;
+  description: string;
+  configured: boolean; // env vars present — NOT the same as "currently reachable"
+  amd_compute: boolean; // true for providers that run a model locally via Ollama on the AMD GPU
+}
+
+export interface ProviderListResponse {
+  providers: ProviderOption[];
+  forced_provider: string | null; // null means "auto" (normal failover chain)
+}
+
+// AMD Compute panel (amd_compute/specialist_eval_and_embeddings.ipynb
+// output, read live off disk by the backend — never fabricated)
+export interface AmdComputeEvalSummary {
+  judge_model: string | null;
+  source_provider: string | null;
+  n_samples: number | null;
+  n_passed: number | null;
+  judge_elapsed_seconds: number | null;
+}
+
+export interface AmdComputeStatus {
+  has_run: boolean;
+  embeddings_available: boolean;
+  reasoning_eval_available: boolean;
+  n_patients_embedded: number | null;
+  device: string | null;
+  embedding_time: string | null;
+  eval_summaries: AmdComputeEvalSummary[];
+  notebook_path: string;
+}
+
+export interface SimilarPatient {
+  patient_id: string;
+  similarity: number;
+}
+
+export interface AmdComputeSimilarResponse {
+  patient_id: string;
+  similar_patients: SimilarPatient[];
 }

@@ -13,23 +13,47 @@ interface CustomPatientModalProps {
   clearBackendErrors: () => void;
 }
 
+// Numeric fields are held as raw strings while the form is being edited, not
+// numbers. This is what lets a user clear a field to type a fresh value
+// (e.g. delete "55" to type "19") without React immediately snapping the
+// input back to "0" on every keystroke that passes through an empty/NaN
+// intermediate state. Values are only coerced to actual numbers at
+// validate/submit time, in validateLocal() / buildNumericPayload().
+type NumericFieldName = Exclude<keyof CustomPatientInput, "sex" | "name">;
+type FormState = { name?: string; sex: "M" | "F" } & Record<NumericFieldName, string>;
+
 // Sane NHANES baseline defaults matching the guidelines
-const defaultValues: CustomPatientInput = {
+const defaultValues: FormState = {
   name: "",
-  age: 55,
+  age: "55",
   sex: "F",
-  years_with_diabetes: 10,
-  a1c_percent: 6.5,
-  egfr: 75.0,
-  uacr_mg_g: 10.0,
-  creatinine_mg_dl: 0.90,
-  ldl_mg_dl: 120,
-  hdl_mg_dl: 50,
-  triglycerides_mg_dl: 150,
-  systolic_bp: 130,
+  years_with_diabetes: "10",
+  a1c_percent: "6.5",
+  egfr: "75",
+  uacr_mg_g: "10",
+  creatinine_mg_dl: "0.90",
+  ldl_mg_dl: "120",
+  hdl_mg_dl: "50",
+  triglycerides_mg_dl: "150",
+  systolic_bp: "130",
 };
 
-const bounds: Record<Exclude<keyof CustomPatientInput, "sex" | "name">, { min: number; max: number; label: string }> = {
+const highRiskDemoValues: FormState = {
+  name: "",
+  age: "65",
+  sex: "M",
+  years_with_diabetes: "20",
+  a1c_percent: "8.5",
+  egfr: "45",
+  uacr_mg_g: "250",
+  creatinine_mg_dl: "1.6",
+  ldl_mg_dl: "210",
+  hdl_mg_dl: "32",
+  triglycerides_mg_dl: "380",
+  systolic_bp: "155",
+};
+
+const bounds: Record<NumericFieldName, { min: number; max: number; label: string }> = {
   age: { min: 1, max: 120, label: "Age" },
   years_with_diabetes: { min: 0, max: 90, label: "Years with Diabetes" },
   a1c_percent: { min: 3.0, max: 20.0, label: "HbA1c (%)" },
@@ -50,10 +74,10 @@ export function CustomPatientModal({
   backendFieldErrors,
   clearBackendErrors,
 }: CustomPatientModalProps) {
-  const [form, setForm] = useState<CustomPatientInput>(defaultValues);
+  const [form, setForm] = useState<FormState>(defaultValues);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
 
-  const handleChange = (name: keyof CustomPatientInput, val: any) => {
+  const handleChange = (name: keyof FormState, val: string) => {
     setForm((prev) => ({ ...prev, [name]: val }));
     if (localErrors[name]) {
       setLocalErrors((prev) => {
@@ -68,35 +92,21 @@ export function CustomPatientModal({
   const handleLoadDemo = (type: "normal" | "high-risk") => {
     clearBackendErrors();
     setLocalErrors({});
-    if (type === "normal") {
-      setForm(defaultValues);
-    } else {
-      setForm({
-        name: "",
-        age: 65,
-        sex: "M",
-        years_with_diabetes: 20,
-        a1c_percent: 8.5,
-        egfr: 45.0,
-        uacr_mg_g: 250.0,
-        creatinine_mg_dl: 1.6,
-        ldl_mg_dl: 210,
-        hdl_mg_dl: 32,
-        triglycerides_mg_dl: 380,
-        systolic_bp: 155,
-      });
-    }
+    setForm(type === "normal" ? defaultValues : highRiskDemoValues);
   };
 
   const validateLocal = (): boolean => {
     const errors: Record<string, string> = {};
     let isValid = true;
 
-    // Validate ranges
-    (Object.keys(bounds) as Array<keyof typeof bounds>).forEach((key) => {
-      const val = form[key];
+    // Validate ranges — form values are raw strings at this point, so a
+    // blank/partial field (e.g. mid-edit) correctly fails here rather than
+    // silently becoming 0.
+    (Object.keys(bounds) as NumericFieldName[]).forEach((key) => {
+      const raw = form[key];
       const bound = bounds[key];
-      if (typeof val !== "number" || isNaN(val)) {
+      const val = raw.trim() === "" ? NaN : Number(raw);
+      if (Number.isNaN(val)) {
         errors[key] = "Value must be a valid number.";
         isValid = false;
       } else if (val < bound.min || val > bound.max) {
@@ -109,10 +119,25 @@ export function CustomPatientModal({
     return isValid;
   };
 
+  const buildNumericPayload = (): CustomPatientInput => ({
+    name: form.name,
+    sex: form.sex,
+    age: Number(form.age),
+    years_with_diabetes: Number(form.years_with_diabetes),
+    a1c_percent: Number(form.a1c_percent),
+    egfr: Number(form.egfr),
+    uacr_mg_g: Number(form.uacr_mg_g),
+    creatinine_mg_dl: Number(form.creatinine_mg_dl),
+    ldl_mg_dl: Number(form.ldl_mg_dl),
+    hdl_mg_dl: Number(form.hdl_mg_dl),
+    triglycerides_mg_dl: Number(form.triglycerides_mg_dl),
+    systolic_bp: Number(form.systolic_bp),
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateLocal()) {
-      onSubmit(form);
+      onSubmit(buildNumericPayload());
     }
   };
 
@@ -199,7 +224,7 @@ export function CustomPatientModal({
                 type="number"
                 step="0.1"
                 value={form.egfr}
-                onChange={(e) => handleChange("egfr", parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleChange("egfr", e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
               />
               {(localErrors.egfr || backendFieldErrors.egfr) && (
@@ -218,7 +243,7 @@ export function CustomPatientModal({
                   type="number"
                   step="1"
                   value={form.age}
-                  onChange={(e) => handleChange("age", parseInt(e.target.value) || 0)}
+                  onChange={(e) => handleChange("age", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
                 {(localErrors.age || backendFieldErrors.age) && (
@@ -248,7 +273,7 @@ export function CustomPatientModal({
                   type="number"
                   step="0.1"
                   value={form.uacr_mg_g}
-                  onChange={(e) => handleChange("uacr_mg_g", parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleChange("uacr_mg_g", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
                 {(localErrors.uacr_mg_g || backendFieldErrors.uacr_mg_g) && (
@@ -261,7 +286,7 @@ export function CustomPatientModal({
                   type="number"
                   step="0.01"
                   value={form.creatinine_mg_dl}
-                  onChange={(e) => handleChange("creatinine_mg_dl", parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleChange("creatinine_mg_dl", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
                 {(localErrors.creatinine_mg_dl || backendFieldErrors.creatinine_mg_dl) && (
@@ -280,7 +305,7 @@ export function CustomPatientModal({
                   type="number"
                   step="1"
                   value={form.years_with_diabetes}
-                  onChange={(e) => handleChange("years_with_diabetes", parseInt(e.target.value) || 0)}
+                  onChange={(e) => handleChange("years_with_diabetes", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
                 {(localErrors.years_with_diabetes || backendFieldErrors.years_with_diabetes) && (
@@ -293,7 +318,7 @@ export function CustomPatientModal({
                   type="number"
                   step="0.1"
                   value={form.a1c_percent}
-                  onChange={(e) => handleChange("a1c_percent", parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleChange("a1c_percent", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
                 {(localErrors.a1c_percent || backendFieldErrors.a1c_percent) && (
@@ -318,7 +343,7 @@ export function CustomPatientModal({
                     type="number"
                     step="1"
                     value={form.ldl_mg_dl}
-                    onChange={(e) => handleChange("ldl_mg_dl", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleChange("ldl_mg_dl", e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-mono focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -328,7 +353,7 @@ export function CustomPatientModal({
                     type="number"
                     step="1"
                     value={form.hdl_mg_dl}
-                    onChange={(e) => handleChange("hdl_mg_dl", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleChange("hdl_mg_dl", e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-mono focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -338,7 +363,7 @@ export function CustomPatientModal({
                     type="number"
                     step="1"
                     value={form.triglycerides_mg_dl}
-                    onChange={(e) => handleChange("triglycerides_mg_dl", parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleChange("triglycerides_mg_dl", e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs font-mono focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -373,7 +398,7 @@ export function CustomPatientModal({
                   type="number"
                   step="1"
                   value={form.systolic_bp}
-                  onChange={(e) => handleChange("systolic_bp", parseInt(e.target.value) || 0)}
+                  onChange={(e) => handleChange("systolic_bp", e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:border-emerald-500 focus:outline-none"
                 />
                 {(localErrors.systolic_bp || backendFieldErrors.systolic_bp) && (

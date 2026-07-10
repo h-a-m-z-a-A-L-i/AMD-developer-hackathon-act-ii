@@ -291,31 +291,52 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
               </div>
             )}
 
-            {/* Slide 7 — AMD compute (PLACEHOLDER, needs final details before submission) */}
+            {/* Slide 7 — AMD compute */}
             {activeSlide === 7 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Powered by</p>
-                  <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-600">
-                    Edit before submission
+                  <span className="rounded-full bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
+                    AMD Cloud &amp; Fireworks.ai
                   </span>
                 </div>
-                <div className="rounded-[32px] border-2 border-dashed border-red-300 bg-red-50/60 p-4 space-y-2.5">
+                <p className="text-sm sm:text-base leading-relaxed text-slate-600">
+                  GlycoSwarm runs on an <span className="font-semibold text-slate-800">AMD Instinct MI300X</span>, provisioned through AMD Developer Cloud.
+                </p>
+
+                <div className="rounded-[32px] border border-sky-100 bg-sky-50/50 p-4">
                   <div className="flex items-center gap-2">
-                    <Icon path={ICON_PATHS.warning} className="h-4 w-4 flex-shrink-0 text-red-600" />
-                    <p className="text-sm font-semibold text-red-700">TODO: swap in final AMD compute details</p>
+                    <Icon path={ICON_PATHS.cpu} className="h-4 w-4 flex-shrink-0 text-sky-600" />
+                    <p className="text-sm font-semibold text-slate-800">AMD Instinct MI300X</p>
                   </div>
-                  <p className="text-xs sm:text-sm leading-relaxed text-red-700/80">
-                    We&apos;re testing on non-AMD hardware right now due to limited credits. Before submission, replace this slide with the actual AMD stack we run on (e.g. Instinct GPU / ROCm details, which agent workloads run where, any performance numbers).
+                  <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500">
+                    192GB VRAM &middot; 20 vCPU &middot; 240GB RAM &middot; ROCm.
                   </p>
                 </div>
-                <div className="flex items-center gap-3 rounded-[32px] border border-slate-100 bg-slate-50/50 p-3 opacity-60">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-                    <Icon path={ICON_PATHS.cpu} className="h-5 w-5 text-slate-500" />
+
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-3 rounded-[32px] border border-slate-100 bg-slate-50/50 p-3">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                      <Icon path={ICON_PATHS.database} className="h-5 w-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Batch: patient embeddings + reasoning QA</p>
+                      <p className="mt-0.5 text-xs leading-snug text-slate-500">
+                        Embeds every patient for similarity search and grades the swarm&apos;s reasoning against a clinical rubric, using real GPU compute confirmed via rocm-smi.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">[Placeholder] AMD compute details go here</p>
-                    <p className="mt-0.5 text-xs leading-snug text-slate-500">Replace before final submission</p>
+
+                  <div className="flex items-center gap-3 rounded-[32px] border border-slate-100 bg-slate-50/50 p-3">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                      <Icon path={ICON_PATHS.sandbox} className="h-5 w-5 text-slate-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Live: AMD + Fireworks, switchable</p>
+                      <p className="mt-0.5 text-xs leading-snug text-slate-500">
+                        GlycoSwarm is also powered by Fireworks.ai for live inference. Switch between the AMD relay and Fireworks anytime from the provider selector in the header.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

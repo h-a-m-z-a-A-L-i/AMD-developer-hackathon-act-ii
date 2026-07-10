@@ -29,8 +29,20 @@ const specialistLabels: Record<string, string> = {
   retinal: "Retina (Retinopathy)",
   renal: "Kidneys (Nephropathy)",
   neuropathy: "Nerves (Neuropathy)",
-  cardiovascular: "Heart & Vessels",
+  cardiovascular: "Heart & Vessels (Cardiology)",
 };
+
+// Splits "Kidneys (Nephropathy)" into a big primary word and a smaller
+// parenthetical sub-label rendered on its own line, instead of letting the
+// browser wrap the full string wherever it runs out of width (which was
+// breaking mid-phrase, e.g. "Kidneys" / "(Nephropathy)" landing on two
+// lines with mismatched sizes). Labels with no parenthetical ("Heart &
+// Vessels") just render as a single line.
+function splitSpecialistLabel(label: string): { main: string; sub: string | null } {
+  const match = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (match) return { main: match[1], sub: match[2] };
+  return { main: label, sub: null };
+}
 
 export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }: OrganRiskMapProps) {
   const [hoveredSpec, setHoveredSpec] = useState<string | null>(null);
@@ -47,7 +59,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] h-full flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-8 text-sm text-slate-400 animate-pulse font-sans">
+      <div className="flex min-h-[480px] h-full flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-8 text-sm text-slate-400 animate-pulse font-sans">
         <div className="relative flex items-center justify-center">
           <div className="absolute h-12 w-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" />
           <span className="text-xs font-mono text-emerald-600 mt-20 uppercase tracking-widest">Running Swarm Sandboxes...</span>
@@ -58,7 +70,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
 
   if (!specialists.length) {
     return (
-      <div className="flex min-h-[400px] h-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-8 text-sm text-slate-400 font-sans text-center">
+      <div className="flex min-h-[480px] h-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50/50 p-8 text-sm text-slate-400 font-sans text-center">
         <svg className="w-12 h-12 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
         </svg>
@@ -107,13 +119,13 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
     <div className="flex h-full flex-col gap-3 font-sans text-slate-800">
       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
         <div className="flex flex-col">
-          <h2 className="text-sm font-semibold tracking-tight text-slate-700">
+          <h2 className="text-base font-semibold tracking-tight text-slate-700">
             Anatomical Risk Map
           </h2>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-5 flex-1 items-stretch">
+      <div className="flex flex-col md:flex-row gap-6 flex-1 min-w-0 items-stretch">
         
         {/* SVG Silhouette Panel (Left side) - Clean minimalist style.
             Uses its own dedicated bg/border (rather than the shared
@@ -121,7 +133,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
             mode) because that shared dark override lands almost the
             exact same navy as the parent glass-card, so the panel was
             invisible against its own container in dark mode. */}
-        <div className="flex-1 flex items-center justify-center bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 rounded-[32px] p-4 min-h-[340px] relative overflow-hidden select-none">
+        <div className="flex-[1.3] min-w-0 flex items-center justify-center bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 rounded-[32px] p-5 min-h-[480px] relative overflow-hidden select-none">
           {/* Dotted Grid Pattern Background — separate light/dark layers
               since dark dots on a dark panel are invisible. */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.03] dark:hidden bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:14px_14px]" />
@@ -131,7 +143,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
               since three.js can't run server-side. Preserves the exact
               same bidirectional highlight state (activeSpec) the old SVG
               hotspots used. */}
-          <div className="w-full h-full max-w-[600px] max-h-[600px]">
+          <div className="w-full h-full max-w-[880px] max-h-[880px]">
             <OrganRiskMap3D
               specialists={specialists}
               activeSpec={activeSpec}
@@ -141,39 +153,42 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
           </div>
         </div>
 
-        {/* Right side Detail List */}
-        <div className="flex-[1.5] flex flex-col gap-3">
+        {/* Right side Detail List — scrolls internally rather than being
+            silently clipped by the parent panel's overflow-hidden if the
+            cards ever need more vertical space than the shrunk container
+            has to offer. */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto">
           {/* Executive Summary Compiling */}
           {synthesis && synthesis.available && highestRisk && (
-            <FadeInUp className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-4 pl-5 shadow-sm">
+            <FadeInUp className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-5 pl-6 shadow-sm">
               <div className="absolute inset-y-0 left-0 w-[3px] bg-rose-400" />
-              <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-slate-400">
+              <p className="text-xs uppercase tracking-[0.24em] font-semibold text-slate-400">
                 Highest Risk Trajectory
               </p>
-              <div className="mt-1 flex items-center justify-between">
-                <p className="font-bold text-slate-900 text-base">
+              <div className="mt-1.5 flex items-center justify-between">
+                <p className="font-bold text-slate-900 text-lg">
                   {specialistLabels[highestRisk.specialist] ?? highestRisk.specialist}
                 </p>
-                <span className="text-xs font-mono bg-slate-100 px-2.5 py-1 rounded text-slate-800 font-semibold border border-slate-200">
+                <span className="text-sm font-mono bg-slate-100 px-3 py-1 rounded text-slate-800 font-semibold border border-slate-200">
                   Score: {((highestRisk.risk_score as number) * 100).toFixed(0)}%
                 </span>
               </div>
-              <p className="mt-2.5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-2">
+              <p className="mt-3 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-2.5">
                 <span className="font-bold text-slate-800">Clinical Rec:</span> {synthesis.recommendation}
               </p>
             </FadeInUp>
           )}
           {synthesis && !synthesis.available && (
-            <FadeInUp className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4">
-              <p className="text-[10px] uppercase tracking-[0.24em] font-semibold text-slate-400">
+            <FadeInUp className="rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-5">
+              <p className="text-xs uppercase tracking-[0.24em] font-semibold text-slate-400">
                 Synthesis Unavailable
               </p>
-              <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{synthesis.synthesis_error}</p>
+              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{synthesis.synthesis_error}</p>
             </FadeInUp>
           )}
 
           {/* Specialist Grid */}
-          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+          <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 min-w-0">
             {specialists.map((finding) => {
               const isActive = activeSpec === finding.specialist;
               const isTopRisk = !!highestRisk && finding.specialist === highestRisk.specialist && (finding.risk_score ?? 0) >= 0.4;
@@ -186,7 +201,7 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                 : "text-emerald-700";
 
               return (
-                <StaggerItem key={finding.specialist} className="flex">
+                <StaggerItem key={finding.specialist} className="flex min-w-0">
                   <HoverScale
                     role="button"
                     tabIndex={0}
@@ -200,27 +215,39 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                         toggleSelected(finding.specialist);
                       }
                     }}
-                    className={`w-full relative rounded-xl border p-4 flex flex-col justify-between min-h-[110px] transition-colors duration-200 cursor-pointer outline-none ${getRiskColorClass(
+                    className={`w-full relative rounded-xl border p-5 flex flex-col justify-between min-h-[150px] transition-colors duration-200 cursor-pointer outline-none ${getRiskColorClass(
                       finding.risk_score
                     )} ${isTopRisk ? "ring-2 ring-rose-300" : ""} ${isActive ? "ring-2 ring-sky-400 shadow-md" : "shadow-sm"}`}
                   >
                   {isTopRisk && (
-                    <span className="absolute -top-2 left-3 rounded-full bg-rose-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                    <span className="absolute -top-2.5 left-3 rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
                       Top Concern
                     </span>
                   )}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-slate-900">
-                        {specialistLabels[finding.specialist] ?? finding.specialist}
-                      </span>
-                      <span className="text-[9px] uppercase tracking-wider text-slate-400 mt-0.5">
+                    <div className="flex flex-col min-w-0">
+                      {(() => {
+                        const { main, sub } = splitSpecialistLabel(specialistLabels[finding.specialist] ?? finding.specialist);
+                        return (
+                          <>
+                            <span className="text-xl font-bold leading-tight text-slate-900 truncate">
+                              {main}
+                            </span>
+                            {sub && (
+                              <span className="text-sm font-semibold text-slate-500 tracking-wide truncate">
+                                {sub}
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                      <span className="text-xs uppercase tracking-wider text-slate-400 mt-1.5">
                         {getSeverityLabel(finding.available, finding.risk_score)}
                       </span>
                     </div>
                     {/* Ring indicator */}
-                    <div className="relative flex items-center justify-center h-3.5 w-3.5 mt-0.5">
-                      <span className={`h-2.5 w-2.5 rounded-full ${
+                    <div className="relative flex items-center justify-center h-5 w-5 mt-0.5">
+                      <span className={`h-3.5 w-3.5 rounded-full ${
                         !finding.available
                           ? "bg-slate-400"
                           : (finding.risk_score ?? 0) >= 0.7
@@ -232,11 +259,11 @@ export function OrganRiskMap({ specialists = [], synthesis, isLoading = false }:
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-baseline justify-between">
-                    <span className="text-[10px] font-mono text-slate-400">
+                  <div className="mt-5 flex items-baseline justify-between">
+                    <span className="text-sm font-mono text-slate-400">
                       RISK PROBABILITY
                     </span>
-                    <span className={`text-lg font-bold font-mono tracking-tight leading-none ${scoreColor}`}>
+                    <span className={`text-3xl font-bold font-mono tracking-tight leading-none ${scoreColor}`}>
                       {finding.risk_score !== null ? `${(finding.risk_score * 100).toFixed(0)}%` : "N/A"}
                     </span>
                   </div>
