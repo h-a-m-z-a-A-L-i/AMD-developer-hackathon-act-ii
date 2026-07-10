@@ -18,9 +18,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-# Import the patient execution pipeline straight from your engineer's script
+# Patient execution pipeline (agent orchestration + graph definition)
 from run_pipeline import run_patient, run_patient_streaming, build_graph
-from agent_core import get_llm_status, reset_llm_call_counter, get_llm_call_count
+from agent_core import (
+    get_llm_status,
+    get_provider_detail,
+    reset_llm_call_counter,
+    get_llm_call_count,
+    PROVIDER_IDS,
+    get_forced_provider,
+    set_forced_provider,
+)
 from report_agent import generate_brief
 
 BACKEND_DIR = Path(__file__).resolve().parent
@@ -41,7 +49,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Allow your Next.js frontend workspace to fetch data securely
+# CORS: allow the Next.js frontend to fetch data from this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Change to ["http://localhost:3000"] in production
@@ -201,6 +209,7 @@ def _run_pipeline_and_build_response(patient_row: dict) -> dict:
             "agents_run": 5,
             "llm_calls_made": get_llm_call_count(),
             "provider": get_llm_status(),
+            "provider_detail": get_provider_detail(),
         },
     }
 
@@ -365,7 +374,7 @@ def get_system_info():
             "agent turns that into a plain-language clinical brief."
         ),
         "data_source": "NHANES 2017-2018 patient records",
-        "llm_mode": "offline" if get_llm_status() is None else get_llm_status(),
+        "llm_mode": "offline" if get_llm_status() is None else get_provider_detail(),
     }
 
 
@@ -374,7 +383,7 @@ def list_patients():
     """Returns a list of all available sample patients for the UI dropdown selection."""
     if PATIENTS_DF.empty:
         return []
-    # Return basic data columns to populate your frontend dashboard selectors
+    # Basic columns only - enough to populate the dashboard's patient selector
     return PATIENTS_DF[["patient_id", "age", "sex", "a1c_percent"]].to_dict(orient="records")
 
 
@@ -416,7 +425,7 @@ def analyze_patient(patient_id: str):
     patient_row = _get_patient_row(patient_id)
 
     try:
-        # Run the end-to-end evaluation pipeline (Executes agents + synthesis code blocks)
+        # Runs the end-to-end evaluation pipeline (executes agent + synthesis code blocks)
         return _run_pipeline_and_build_response(patient_row)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline execution breakdown: {str(e)}")
@@ -458,6 +467,7 @@ def _stream_pipeline_events(patient_row: dict):
         "patient_id": str(patient_row["patient_id"]),
         "agents": ["renal", "neuropathy", "retinal", "cardiovascular"],
         "provider": get_llm_status(),
+        "provider_detail": get_provider_detail(),
         "timestamp": time.time(),
     }
     yield f"data: {json.dumps(start_event)}\n\n"
@@ -473,6 +483,7 @@ def _stream_pipeline_events(patient_row: dict):
         "agents_run": 5,
         "llm_calls_made": get_llm_call_count(),
         "provider": get_llm_status(),
+        "provider_detail": get_provider_detail(),
     }
     yield f"data: {json.dumps(summary)}\n\n"
 
@@ -538,19 +549,104 @@ def analyze_patient_stream(patient_id: str):
 @app.get("/api/status", tags=["info"])
 def get_status():
     """Returns the current LLM status of the backend (fireworks, featherless, or offline),
-    plus the actual model string in use so the Benchmark tab can show e.g.
-    'Qwen/Qwen2.5-7B-Instruct via Featherless' instead of just a provider name.
+    the specific route Featherless took (direct vs AMD notebook fallback), plus the
+    actual model string in use so the Benchmark tab can show e.g.
+    'Qwen/Qwen2.5-7B-Instruct via featherless (direct)' instead of just a provider name.
     """
-    from agent_core import FIREWORKS_MODEL, FEATHERLESS_MODEL
+    from agent_core import FIREWORKS_MODEL, FEATHERLESS_MODEL, NOTEBOOK_OLLAMA_MODELS
     provider = get_llm_status()
-    model_map = {"fireworks": FIREWORKS_MODEL, "featherless": FEATHERLESS_MODEL}
+    model_map = {"fireworks": FIREWORKS_MODEL, "featherless": FEATHERLESS_MODEL, **NOTEBOOK_OLLAMA_MODELS}
     return {
         "llm_status": "offline" if provider is None else provider,
+        "provider_detail": get_provider_detail(),
         "model": model_map.get(provider),
+    }
+
+
+# Human-facing labels + descriptions for the provider switcher dropdown.
+# "amd_notebook_qwen"/"amd_notebook_gemma" both route through
+# amd_compute/amd_notebook_relay_server.ipynb on the AMD Developer Cloud
+# instance, but run that model LOCALLY via Ollama on the AMD GPU - genuine
+# on-device compute, not a hosted-API relay. Requires that notebook's last
+# cell to be running (with Ollama serving qwen2.5-coder:7b/gemma2).
+_PROVIDER_LABELS = {
+    "fireworks": {
+        "label": "Fireworks: gpt-oss-120b",
+        "description": "Main provider. Hosted API, real credits.",
+    },
+    # FEATHERLESS (TESTING ONLY) - delete this entry when removing Featherless
+    # (see backend/DELETE_FEATHERLESS.md).
+    "featherless": {
+        "label": "Featherless (Direct)",
+        "description": "Calls api.featherless.ai directly. Testing-only fallback.",
+    },
+    "amd_notebook_qwen": {
+        "label": "AMD Notebook: Qwen",
+        "description": "Runs Qwen2.5-Coder 7B on AMD Developer Cloud's GPU.",
+        "amd_compute": True,
+    },
+    "amd_notebook_gemma": {
+        "label": "AMD Notebook: Gemma",
+        "description": "Runs Gemma 2 on AMD Developer Cloud's GPU.",
+        "amd_compute": True,
+    },
+}
+
+
+class ProviderSelection(BaseModel):
+    # None/omitted means "auto" - go back to the normal failover chain.
+    provider: Optional[str] = None
+
+
+@app.get("/api/providers", tags=["info"])
+def list_providers():
+    """Lists every selectable LLM provider for the frontend's provider switcher,
+    plus which one (if any) is currently manually forced. "configured" reflects
+    whether the relevant env var(s) are actually set - NOT whether the provider
+    is reachable right now (that's what /api/status's connectivity check is for).
+    """
+    from agent_core import FIREWORKS_API_KEY, FEATHERLESS_API_KEY, NOTEBOOK_RELAY_URL
+    configured_map = {
+        "fireworks": bool(FIREWORKS_API_KEY),
+        "featherless": bool(FEATHERLESS_API_KEY),  # FEATHERLESS (TESTING ONLY) - delete this line too
+        "amd_notebook_qwen": bool(NOTEBOOK_RELAY_URL),
+        "amd_notebook_gemma": bool(NOTEBOOK_RELAY_URL),
+    }
+    return {
+        "providers": [
+            {
+                "id": pid,
+                "label": _PROVIDER_LABELS[pid]["label"],
+                "description": _PROVIDER_LABELS[pid]["description"],
+                "configured": configured_map[pid],
+                "amd_compute": _PROVIDER_LABELS[pid].get("amd_compute", False),
+            }
+            for pid in PROVIDER_IDS
+        ],
+        "forced_provider": get_forced_provider(),  # null means "auto"
+    }
+
+
+@app.post("/api/providers/select", tags=["info"])
+def select_provider(payload: ProviderSelection):
+    """Manually pins the backend to a single provider ("featherless", "fireworks",
+    "amd_notebook_qwen", or "amd_notebook_gemma"), or pass provider=null to
+    return to the normal auto-failover chain. Takes effect immediately for the
+    next LLM call.
+    """
+    if payload.provider is not None and payload.provider not in PROVIDER_IDS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown provider '{payload.provider}'. Must be one of {PROVIDER_IDS} or null.",
+        )
+    set_forced_provider(payload.provider)
+    return {
+        "forced_provider": get_forced_provider(),
+        "llm_status": get_llm_status(),
+        "provider_detail": get_provider_detail(),
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    # Fires up the server on port 8000
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

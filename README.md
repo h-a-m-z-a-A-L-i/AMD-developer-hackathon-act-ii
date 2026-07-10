@@ -20,6 +20,16 @@ The frontend presents that workflow in a dashboard with:
 - an organ-risk visualization
 - a live reasoning terminal
 - a report export action
+- an AMD Compute panel showing offline patient-similarity + reasoning-QA results produced on an AMD Instinct MI300X (see below)
+
+## AMD Developer Cloud compute (Track 3)
+
+Alongside the live Featherless/Fireworks-backed backend, this project has a genuinely separate offline workload that runs on an AMD Instinct MI300X via the AMD Developer Cloud: `amd_compute/specialist_eval_and_embeddings.ipynb`. It does two things the live path doesn't:
+
+1. Encodes every patient's lab profile into a similarity embedding (sentence-transformer, run on the AMD GPU) so the dashboard can show "similar patients" next to a result.
+2. Judges a batch of the live pipeline's specialist reasoning text with a local model served via Ollama, also on the AMD GPU, as an automated QA signal that doesn't depend on the live API.
+
+Outputs (`amd_compute/outputs/*.json`, `*.npy`, `run_log.txt`) are committed to the repo as proof of the run, and the dashboard's **AMD Compute** panel reads them live off disk — it reports honestly when the notebook hasn't been run yet rather than faking data. Full details, setup, and how judges can verify AMD usage: [`amd_compute/README.md`](amd_compute/README.md).
 
 ## What is real vs. what is demo/prototype
 

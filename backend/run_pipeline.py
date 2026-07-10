@@ -1,18 +1,13 @@
 """
-=============================================================================
-NOTE FOR THE TEAM: Multi-Agent Orchestration via LangGraph
-=============================================================================
-Why we built it this way:
-We upgraded our flat, sequential script to a real multi-agent architecture.
-When judges ask about our agent orchestration, citing an industry-standard 
-framework (especially when competitors are doing the same) is critical. 
+run_pipeline.py
+----------------
+Multi-agent orchestration via LangGraph.
 
-This implementation uses LangGraph's StateGraph to give us:
-   1. Real Shared State: Passed securely between nodes.
-   2. A Genuine Graph Structure: 4 specialists fan out in parallel, then fan 
-      back in to a synthesis node. This is a real directed graph we can 
-      actually screenshot and put in the pitch deck.
-   3. Framework Credibility: A legitimate architecture to cite in the README.
+The pipeline is a directed graph, not a flat sequential script: the 4
+specialist agents (renal, neuropathy, retinal, cardiovascular) fan out from
+START and run in parallel, then fan back in to a single synthesis node that
+produces the final recommendation. State is passed between nodes via
+LangGraph's StateGraph.
 
 Setup:
    pip install langgraph langchain-core
@@ -20,8 +15,6 @@ Setup:
 Usage:
    python3 run_pipeline.py --patient P93758
    python3 run_pipeline.py
-=============================================================================
-
 """
 
 import argparse
@@ -102,8 +95,8 @@ def build_graph():
 
 def run_patient(app, patient_row: dict, verbose=True):
     if verbose:
-        from agent_core import get_llm_status
-        provider = get_llm_status()
+        from agent_core import get_provider_detail
+        provider = get_provider_detail()
         mode = f"LIVE LLM AGENTS ({provider})" if provider else "LLM OFFLINE - no fallback, analysis will be reported unavailable"
         print(f"\n{'='*70}")
         print(f"Patient {patient_row['patient_id']}  |  Mode: {mode}  |  Graph: LangGraph")
