@@ -210,14 +210,76 @@ export function SwarmDiagnosticsTabs({
                         </div>
                       </div>
 
-                      {!spec.available ? (
-                        <div className="rounded-[32px] border border-dashed border-slate-300 bg-slate-50/60 p-5">
-                          <p className="text-sm text-slate-500 leading-relaxed">
-                            No analysis was performed for this specialist &mdash; there is no rule-based
-                            fallback in this system. <span className="font-medium text-slate-600">{spec.reasoning}</span>
-                          </p>
-                        </div>
-                      ) : (
+                      {!spec.available ? (() => {
+                        const raw = spec.reasoning || "";
+                        // Extract the last meaningful exception line from the traceback
+                        const lines = raw.split(/\n|\\n/).map((l: string) => l.trim()).filter(Boolean);
+                        // Find the final exception line (e.g. "ZeroDivisionError: float division by zero")
+                        const exceptionLine = [...lines].reverse().find((l: string) =>
+                          /^[A-Za-z]+Error:|^[A-Za-z]+Exception:|^[A-Za-z]+Warning:/.test(l)
+                        );
+                        // Find how many attempts were made
+                        const attemptsMatch = raw.match(/failed\s+(\d+)\s+times?/i);
+                        const attempts = attemptsMatch ? attemptsMatch[1] : null;
+                        // Check if it's a code execution error
+                        const isCodeError = raw.includes("EXECUTION ERROR") || raw.includes("Traceback");
+                        // Brief human-readable summary
+                        const summary = isCodeError
+                          ? exceptionLine
+                            ? exceptionLine.replace(/^[A-Za-z]+Error:\s*/, "").replace(/^[A-Za-z]+Exception:\s*/, "")
+                            : "An unexpected error occurred while running the specialist's analysis code."
+                          : raw.length > 180 ? raw.slice(0, 180) + "…" : raw;
+
+                        return (
+                          <div className="rounded-[32px] border border-dashed border-rose-200 bg-rose-50/40 p-5 space-y-3">
+                            {/* Error type badge */}
+                            <div className="flex items-center gap-2">
+                              <svg className="h-4 w-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
+                                {isCodeError ? "Sandbox Execution Failed" : "Analysis Unavailable"}
+                              </span>
+                              {attempts && (
+                                <span className="ml-auto text-[10px] font-semibold text-rose-400 bg-rose-100 rounded-full px-2 py-0.5">
+                                  {attempts} attempt{Number(attempts) !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Human-readable summary */}
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              {isCodeError ? (
+                                <>
+                                  The specialist&apos;s LLM-generated code could not complete successfully.{" "}
+                                  <span className="font-semibold text-slate-700">
+                                    Cause: {exceptionLine
+                                      ? exceptionLine.replace(/^[A-Za-z]+Error:\s*/, "").replace(/^[A-Za-z]+Exception:\s*/, "") || exceptionLine
+                                      : "Unknown runtime error."}
+                                  </span>
+                                </>
+                              ) : (
+                                summary
+                              )}
+                            </p>
+
+                            {/* Collapsible technical detail */}
+                            {isCodeError && raw.length > 0 && (
+                              <details className="group">
+                                <summary className="cursor-pointer text-[11px] font-semibold text-rose-500 hover:text-rose-700 transition-colors flex items-center gap-1 select-none list-none">
+                                  <svg className="h-3 w-3 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                  Show technical trace
+                                </summary>
+                                <pre className="mt-2 rounded-2xl bg-slate-950 border border-slate-800 p-3 text-[10px] text-rose-300/80 font-mono leading-relaxed overflow-x-auto max-h-[200px] scrollbar-thin whitespace-pre-wrap break-words">
+                                  {raw}
+                                </pre>
+                              </details>
+                            )}
+                          </div>
+                        );
+                      })() : (
                         <div className="space-y-4">
                           <div className="space-y-2">
                             <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clinical Reasoning</h5>
