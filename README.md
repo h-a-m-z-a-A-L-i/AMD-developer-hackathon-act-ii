@@ -23,11 +23,23 @@ The frontend presents that workflow in a dashboard with:
 
 ## AMD Developer Cloud compute (Track 3)
 
-The live backend's main LLM provider, **Gemma 4 26B, runs genuinely on-GPU via Ollama on an AMD MI300X GPU droplet** (AMD Developer Cloud). This is the primary AMD compute path for the project - not a side notebook or an offline demo, it's what actually serves every specialist/synthesis/report call during a real patient analysis, with **Fireworks GLM 5.2** (serverless) as the fallback if the droplet isn't reachable. See "LLM providers" below, `backend/agent_core.py`, and `HANDOFF.md` for the droplet setup and provider-chain details.
+The live backend's main LLM provider, **Gemma 4 26B, runs genuinely on-GPU via Ollama on an AMD MI300X GPU droplet** (AMD Developer Cloud). This is the primary AMD compute path for the project - not a side notebook or an offline demo, it's what actually serves every specialist/synthesis/report call during a real patient analysis, with **Fireworks GLM 5.2** (serverless) as the fallback if the droplet isn't reachable. See "LLM providers" below and `backend/agent_core.py` for the provider-chain details.
+
+### How it's wired up
+
+- **Model serving**: Gemma 4 26B (MoE) is pulled and served locally on the droplet via [Ollama](https://ollama.com), talking to the GPU through ROCm.
+- **Backend connection**: the FastAPI backend (`backend/agent_core.py`) calls Ollama's native `/api/chat` endpoint directly - no third-party API sits in between for this provider. `AMD_OLLAMA_URL` in the backend's environment points at the droplet's Ollama instance.
+- **Fallback**: if the AMD provider isn't reachable, the backend automatically fails over to Fireworks GLM 5.2 (serverless). There is no rule-based/deterministic fallback for either path - if neither is reachable, the affected specialist/synthesis/report step honestly reports itself "unavailable" instead of faking output.
+
+### How to verify it's genuinely on-GPU
+
+- The dashboard's **provider switcher** shows which provider actually served the last request in real time, including `AMD` / `Gemma` tag badges when the AMD path is active - not just a static label.
+- The **Benchmark tab** in the app reports live per-run stats (`total_duration_ms`, `llm_calls_made`, active provider) pulled straight from the pipeline, not hardcoded.
+- `GET /api/status` and `GET /api/providers` on the backend expose the same information programmatically for anyone who wants to check outside the UI.
 
 ## LLM providers
 
-The live backend tries exactly two providers, in order: **Gemma 4 26B running genuinely on-GPU via Ollama on an AMD MI300X GPU droplet** (main provider) and, as fallback, **Fireworks GLM 5.2** (serverless). If neither is reachable, specialists/synthesis/report all honestly report "unavailable" rather than falling back to canned or rule-based output. See `backend/agent_core.py` and `HANDOFF.md` for details.
+The live backend tries exactly two providers, in order: **Gemma 4 26B running genuinely on-GPU via Ollama on an AMD MI300X GPU droplet** (main provider) and, as fallback, **Fireworks GLM 5.2** (serverless). If neither is reachable, specialists/synthesis/report all honestly report "unavailable" rather than falling back to canned or rule-based output. See `backend/agent_core.py` for details.
 
 ## What is real vs. what is demo/prototype
 
