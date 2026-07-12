@@ -530,7 +530,20 @@ def analyze_custom_patient_stream(payload: CustomPatientInput = Depends(_custom_
     otherwise swallow 'custom' as a literal patient ID.
     """
     patient_row = _build_custom_patient_row(payload)
-    return StreamingResponse(_stream_pipeline_events(patient_row), media_type="text/event-stream")
+    return StreamingResponse(
+        _stream_pipeline_events(patient_row),
+        media_type="text/event-stream",
+        # Explicit no-cache headers: without these, a browser can serve a
+        # cached response for a repeated identical GET to this exact URL
+        # (same patient, same query params) instead of actually re-hitting
+        # the backend - which would silently replay stale results (same
+        # duration_ms, same generated code, same risk_score) even after a
+        # real re-run, e.g. right after switching providers and clicking
+        # Analyze again on the same patient. SSE responses should always set
+        # these regardless, but this makes it explicit rather than relying on
+        # default (unset) Cache-Control behavior.
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/analyze/{patient_id}/stream", tags=["complication-screening"])
@@ -543,7 +556,16 @@ def analyze_patient_stream(patient_id: str):
     implementations.
     """
     patient_row = _get_patient_row(patient_id)
-    return StreamingResponse(_stream_pipeline_events(patient_row), media_type="text/event-stream")
+    return StreamingResponse(
+        _stream_pipeline_events(patient_row),
+        media_type="text/event-stream",
+        # See matching comment in analyze_custom_patient_stream above - same
+        # fix, same reason: prevents a repeated GET to this exact URL (same
+        # patient_id) from being served out of browser cache instead of
+        # actually re-running the pipeline against the currently-selected
+        # provider.
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/status", tags=["info"])
