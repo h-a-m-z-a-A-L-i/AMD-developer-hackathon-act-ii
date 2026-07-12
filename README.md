@@ -27,10 +27,10 @@ Diabetic Complication Swarm is a prototype clinical decision-support experience 
 
 The backend screens **already-diagnosed diabetic patients** — it does not diagnose diabetes itself — across four specialist lenses, run in parallel:
 
-- 🫘 **Renal** — eGFR, UACR, creatinine
-- 🧠 **Neuropathy** — years with diabetes, A1c
-- 👁 **Retinal** — systolic BP, years with diabetes
-- ❤️ **Cardiovascular** — LDL, HDL, triglycerides
+- **Renal** — eGFR, UACR, creatinine
+-  **Neuropathy** — years with diabetes, A1c
+-  **Retinal** — systolic BP, years with diabetes
+-  **Cardiovascular** — LDL, HDL, triglycerides
 
 Each specialist agent writes and executes its own Python scoring code against the patient's real lab values (not a static lookup table), producing a computed risk score, a flag, and reasoning that names the exact cutoffs used. A synthesis agent then combines all four outputs into one ranked referral recommendation, and an optional report agent turns that into a plain-language "Discovery Brief."
 
