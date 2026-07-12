@@ -135,7 +135,7 @@ This project is a working prototype, not a production medical tool.
 │   │   ├── features/dashboard/components/   # Dashboard-specific components
 │   │   ├── lib/                    # API client, helpers
 │   │   └── types/                  # TypeScript types
-│   ├── env.local.example
+│   ├── .env.local.example
 │   ├── package.json
 │   └── tailwind.config.ts
 └── README.md
@@ -203,7 +203,7 @@ In a second terminal:
 ```bash
 cd frontend
 npm install
-cp env.local.example .env.local
+cp .env.local.example .env.local
 npm run dev
 ```
 
