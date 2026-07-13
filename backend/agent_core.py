@@ -12,6 +12,7 @@ Two providers only:
 Provider connectivity is verified with cached checks.
 """
 
+import concurrent.futures
 import os
 import threading
 import time
@@ -36,7 +37,7 @@ FIREWORKS_URL = "https://api.fireworks.ai/inference/v1/chat/completions"
 # formatting/numeric-reasoning constraints (see STRICT_CODE_FORMAT_INSTRUCTIONS
 # in specialists.py) - a stronger model means fewer malformed-code retries.
 FIREWORKS_FAST_SERVERLESS_MODEL = os.environ.get(
-    "FIREWORKS_FAST_SERVERLESS_MODEL", "accounts/fireworks/models/glm-5p2"
+    "FIREWORKS_FAST_SERVERLESS_MODEL", "accounts/fireworks/routers/glm-5p2-fast"
 )
 
 # --- Main provider: genuine on-GPU AMD compute (ROCm + Ollama, Gemma 4 26B MoE) ---
@@ -413,14 +414,40 @@ def get_provider_detail() -> str | None:
 def call_llm(system_prompt: str, user_prompt: str) -> str:
     """
     Calls the currently available provider, or raises if none are reachable.
+    When no provider is manually forced, races AMD and Fireworks concurrently
+    and returns whichever responds first, so one provider having a slow draw
+    doesn't hold up the call - the losing request is left to finish in the
+    background and its result discarded.
     """
-    provider = get_llm_status()
-    if provider is None:
+    forced = get_forced_provider()
+    if forced is not None:
+        fn = _ALL_PROVIDER_FNS[forced]
+        _LLM_CALL_COUNTER["count"] += 1
+        return fn(system_prompt, user_prompt)
+
+    if get_llm_status() is None:
         raise RuntimeError("LLM_OFFLINE: no configured backend (Fireworks/AMD droplet) is reachable.")
 
-    fn = _ALL_PROVIDER_FNS[provider]
-    _LLM_CALL_COUNTER["count"] += 1
-    return fn(system_prompt, user_prompt)
+    _LLM_CALL_COUNTER["count"] += len(_PROVIDERS)
+
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(_PROVIDERS))
+    futures = {executor.submit(fn, system_prompt, user_prompt): name for name, fn in _PROVIDERS}
+    errors = []
+    result = None
+    try:
+        for future in concurrent.futures.as_completed(futures):
+            name = futures[future]
+            try:
+                result = future.result()
+                break
+            except Exception as e:
+                errors.append(f"{name}: {e}")
+    finally:
+        executor.shutdown(wait=False)
+
+    if result is not None:
+        return result
+    raise RuntimeError(f"All providers failed: {'; '.join(errors)}")
 
 
 def extract_code_block(text: str) -> str:
