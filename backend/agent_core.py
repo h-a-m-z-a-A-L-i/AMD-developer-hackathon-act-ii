@@ -13,7 +13,6 @@ Provider connectivity is verified with cached checks.
 """
 
 import os
-import random
 import threading
 import time
 import traceback
@@ -414,13 +413,10 @@ def get_provider_detail() -> str | None:
 def call_llm(system_prompt: str, user_prompt: str) -> str:
     """
     Calls the currently available provider, or raises if none are reachable.
-    A small jitter reduces parallel rate-limit collisions.
     """
     provider = get_llm_status()
     if provider is None:
         raise RuntimeError("LLM_OFFLINE: no configured backend (Fireworks/AMD droplet) is reachable.")
-
-    time.sleep(random.uniform(0, 1.2))
 
     fn = _ALL_PROVIDER_FNS[provider]
     _LLM_CALL_COUNTER["count"] += 1
